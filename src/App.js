@@ -805,13 +805,14 @@ function Dashboard({ candidates, masters }) {
 // ─── CANDIDATES TABLE ─────────────────────────────────────────────────────────
 function CandidatesPage({ candidates, masters, user, onAdd, onEdit, onDelete, onView }) {
   const [search,setSearch]=useState("");
-  const [filters,setFilters]=useState({client:"",owner:"",status:"",statusCode:"",location:""});
-  const [page,setPage]=useState(1);
+  const [filters,setFilters]=useState({client:"",owner:"",status:"",statusCode:"",location:"",dateFrom:"",dateTo:""});
   const [sort,setSort]=useState({key:"sn",dir:1});
-  const [showFilters,setShowFilters]=useState(false);
-  const PER = 15;
+  const [showAll,setShowAll]=useState(false);
+  const PER = 50;
+  const [page,setPage]=useState(1);
 
   const setFilter = (k,v) => { setFilters(f=>({...f,[k]:v})); setPage(1); };
+  const clearAll = () => { setFilters({client:"",owner:"",status:"",statusCode:"",location:"",dateFrom:"",dateTo:""}); setSearch(""); setPage(1); };
 
   const filtered = useMemo(()=>{
     let r = candidates.filter(c=>!c.deleted);
@@ -824,6 +825,8 @@ function CandidatesPage({ candidates, masters, user, onAdd, onEdit, onDelete, on
     if(filters.status) r=r.filter(c=>c.joiningStatus?.toLowerCase()===filters.status.toLowerCase());
     if(filters.statusCode) r=r.filter(c=>c.statusCode===filters.statusCode);
     if(filters.location) r=r.filter(c=>c.location?.toLowerCase().includes(filters.location.toLowerCase()));
+    if(filters.dateFrom) r=r.filter(c=>c.offerMonth&&c.offerMonth>=filters.dateFrom);
+    if(filters.dateTo) r=r.filter(c=>c.offerMonth&&c.offerMonth<=filters.dateTo);
     r = [...r].sort((a,b)=>{
       const av=a[sort.key], bv=b[sort.key];
       if(av==null) return 1; if(bv==null) return -1;
@@ -832,8 +835,9 @@ function CandidatesPage({ candidates, masters, user, onAdd, onEdit, onDelete, on
     return r;
   },[candidates,search,filters,sort]);
 
-  const pages = Math.ceil(filtered.length/PER)||1;
-  const shown = filtered.slice((page-1)*PER, page*PER);
+  const activeFiltersCount = Object.values(filters).filter(Boolean).length + (search?1:0);
+  const pages = showAll ? 1 : Math.ceil(filtered.length/PER)||1;
+  const shown = showAll ? filtered : filtered.slice((page-1)*PER, page*PER);
 
   const toggleSort = (k) => setSort(s=>s.key===k?{key:k,dir:-s.dir}:{key:k,dir:1});
   const SortArrow = ({k})=><span style={{color:"#94a3b8",fontSize:10,marginLeft:2}}>{sort.key===k?(sort.dir===1?"▲":"▼"):"⇅"}</span>;
@@ -848,14 +852,27 @@ function CandidatesPage({ candidates, masters, user, onAdd, onEdit, onDelete, on
     const a=document.createElement("a"); a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv); a.download="candidates.csv"; a.click();
   };
 
-  const activeFiltersCount = Object.values(filters).filter(Boolean).length;
+  const sel = (label,key,opts,minW=140) => (
+    <div style={{display:"flex",flexDirection:"column",gap:3,minWidth:minW}}>
+      <label style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:.5}}>{label}</label>
+      <select value={filters[key]} onChange={e=>setFilter(key,e.target.value)}
+        style={{padding:"7px 10px",borderRadius:8,border:"1.5px solid "+(filters[key]?"#2563eb":"#e2e8f0"),fontSize:13,background:filters[key]?"#eff6ff":"white",outline:"none",color:"#0f172a",cursor:"pointer"}}>
+        <option value="">All</option>
+        {opts.map(o=><option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
 
   return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:10}}>
+    <div style={{display:"flex",flexDirection:"column",gap:0,minHeight:"100vh"}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
         <div>
           <h2 style={{fontSize:22,fontWeight:800,color:"#0f172a",margin:0}}>Candidates</h2>
-          <p style={{color:"#64748b",margin:"4px 0 0",fontSize:14}}>{filtered.length} records</p>
+          <p style={{color:"#64748b",margin:"4px 0 0",fontSize:14}}>
+            <span style={{fontWeight:700,color:"#2563eb"}}>{filtered.length}</span> of {candidates.filter(c=>!c.deleted).length} records
+            {activeFiltersCount>0&&<span style={{marginLeft:6,fontSize:12,color:"#f97316",fontWeight:600}}>({activeFiltersCount} filter{activeFiltersCount>1?"s":""} active)</span>}
+          </p>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           {canEdit && <button onClick={onAdd} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 16px",background:"linear-gradient(135deg,#2563eb,#7c3aed)",color:"white",border:"none",borderRadius:9,fontWeight:600,cursor:"pointer",fontSize:13}}>
@@ -867,50 +884,69 @@ function CandidatesPage({ candidates, masters, user, onAdd, onEdit, onDelete, on
         </div>
       </div>
 
-      {/* Search + Filters */}
-      <div style={{background:"white",borderRadius:12,padding:14,marginBottom:16,boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9"}}>
-        <div style={{display:"flex",gap:10,marginBottom:showFilters?12:0,flexWrap:"wrap"}}>
-          <div style={{flex:1,minWidth:200,display:"flex",alignItems:"center",gap:8,background:"#f8fafc",borderRadius:8,padding:"8px 12px",border:"1.5px solid #e2e8f0"}}>
-            <Icon name="search" size={14}/><input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Search candidates, clients, phone…" style={{border:"none",background:"none",outline:"none",fontSize:13,width:"100%"}}/>
-          </div>
-          <button onClick={()=>setShowFilters(f=>!f)} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",background:activeFiltersCount>0?"#eff6ff":"#f8fafc",border:"1.5px solid "+(activeFiltersCount>0?"#bfdbfe":"#e2e8f0"),borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600,color:activeFiltersCount>0?"#1d4ed8":"#374151"}}>
-            <Icon name="filter" size={13}/> Filters {activeFiltersCount>0&&`(${activeFiltersCount})`}
-          </button>
-        </div>
-        {showFilters && (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8}}>
-            {[
-              ["Client",filters.client,v=>setFilter("client",v),["","..."].concat(masters.clients)],
-              ["Owner",filters.owner,v=>setFilter("owner",v),["","..."].concat(masters.owners)],
-              ["Joining Status",filters.status,v=>setFilter("status",v),["","..."].concat(masters.joiningStatus)],
-              ["Status Code",filters.statusCode,v=>setFilter("statusCode",v),["","..."].concat(masters.statusCodes.map(s=>s.code))],
-            ].map(([label,val,fn,opts])=>(
-              <div key={label}>
-                <label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:2}}>{label}</label>
-                <select value={val} onChange={e=>fn(e.target.value)} style={{width:"100%",padding:"7px 10px",borderRadius:7,border:"1.5px solid #e2e8f0",fontSize:13,background:"white",outline:"none"}}>
-                  <option value="">All</option>
-                  {opts.filter(o=>o&&o!=="...").map(o=><option key={o} value={o}>{o}</option>)}
-                </select>
-              </div>
-            ))}
-            <div>
-              <label style={{fontSize:11,fontWeight:600,color:"#64748b",display:"block",marginBottom:2}}>Location</label>
-              <input value={filters.location} onChange={e=>setFilter("location",e.target.value)} placeholder="Filter by city…" style={{width:"100%",padding:"7px 10px",borderRadius:7,border:"1.5px solid #e2e8f0",fontSize:13,boxSizing:"border-box",outline:"none"}}/>
+      {/* Filters Bar */}
+      <div style={{background:"white",borderRadius:12,padding:"14px 16px",marginBottom:14,boxShadow:"0 1px 3px rgba(0,0,0,.07)",border:"1px solid #f1f5f9"}}>
+        {/* Search row */}
+        <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap",alignItems:"flex-end"}}>
+          <div style={{flex:"1 1 260px",display:"flex",flexDirection:"column",gap:3}}>
+            <label style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:.5}}>Search</label>
+            <div style={{display:"flex",alignItems:"center",gap:8,background:"#f8fafc",borderRadius:8,padding:"7px 12px",border:"1.5px solid "+(search?"#2563eb":"#e2e8f0")}}>
+              <Icon name="search" size={14}/><input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Name, client, phone, designation…" style={{border:"none",background:"none",outline:"none",fontSize:13,width:"100%"}}/>
+              {search&&<button onClick={()=>{setSearch("");setPage(1);}} style={{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",display:"flex",padding:0}}><Icon name="x" size={12}/></button>}
             </div>
-            {activeFiltersCount>0 && <div style={{display:"flex",alignItems:"flex-end"}}>
-              <button onClick={()=>{setFilters({client:"",owner:"",status:"",statusCode:"",location:""});setPage(1);}} style={{width:"100%",padding:"7px 10px",borderRadius:7,border:"1.5px solid #fecaca",background:"#fef2f2",color:"#dc2626",fontSize:13,fontWeight:600,cursor:"pointer"}}>Clear All</button>
-            </div>}
           </div>
-        )}
+          <div style={{display:"flex",flexDirection:"column",gap:3,minWidth:130}}>
+            <label style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:.5}}>Location</label>
+            <div style={{display:"flex",alignItems:"center",gap:6,background:filters.location?"#eff6ff":"#f8fafc",borderRadius:8,padding:"7px 10px",border:"1.5px solid "+(filters.location?"#2563eb":"#e2e8f0")}}>
+              <input value={filters.location} onChange={e=>setFilter("location",e.target.value)} placeholder="City…" style={{border:"none",background:"none",outline:"none",fontSize:13,width:"100%"}}/>
+              {filters.location&&<button onClick={()=>setFilter("location","")} style={{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",display:"flex",padding:0}}><Icon name="x" size={12}/></button>}
+            </div>
+          </div>
+          {activeFiltersCount>0&&<button onClick={clearAll} style={{padding:"7px 14px",borderRadius:8,border:"1.5px solid #fecaca",background:"#fef2f2",color:"#dc2626",fontSize:13,fontWeight:700,cursor:"pointer",alignSelf:"flex-end"}}>✕ Clear All</button>}
+        </div>
+
+        {/* Dropdown filters row */}
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
+          {sel("Client","client",masters.clients,160)}
+          {sel("Owner","owner",masters.owners,130)}
+          {sel("Joining Status","status",masters.joiningStatus,130)}
+          {sel("Status Code","statusCode",masters.statusCodes.map(s=>s.code),110)}
+          <div style={{display:"flex",flexDirection:"column",gap:3,minWidth:130}}>
+            <label style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:.5}}>Offer From</label>
+            <input type="date" value={filters.dateFrom} onChange={e=>setFilter("dateFrom",e.target.value)}
+              style={{padding:"7px 10px",borderRadius:8,border:"1.5px solid "+(filters.dateFrom?"#2563eb":"#e2e8f0"),fontSize:13,background:filters.dateFrom?"#eff6ff":"white",outline:"none",color:"#0f172a",cursor:"pointer"}}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:3,minWidth:130}}>
+            <label style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:.5}}>Offer To</label>
+            <input type="date" value={filters.dateTo} onChange={e=>setFilter("dateTo",e.target.value)}
+              style={{padding:"7px 10px",borderRadius:8,border:"1.5px solid "+(filters.dateTo?"#2563eb":"#e2e8f0"),fontSize:13,background:filters.dateTo?"#eff6ff":"white",outline:"none",color:"#0f172a",cursor:"pointer"}}/>
+          </div>
+          <div style={{display:"flex",gap:6,alignItems:"flex-end",marginLeft:"auto"}}>
+            <button onClick={()=>{setShowAll(v=>!v);setPage(1);}}
+              style={{padding:"7px 14px",borderRadius:8,border:"1.5px solid "+(showAll?"#7c3aed":"#e2e8f0"),background:showAll?"#f5f3ff":"white",color:showAll?"#7c3aed":"#374151",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
+              {showAll?`Showing all ${filtered.length}`:`Show all ${filtered.length}`}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Status code legend */}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+        {masters.statusCodes.map(s=>(
+          <button key={s.code} onClick={()=>setFilter("statusCode",filters.statusCode===s.code?"":s.code)}
+            style={{display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,border:`1.5px solid ${filters.statusCode===s.code?s.color:s.color+"55"}`,background:filters.statusCode===s.code?s.color+"22":"white",cursor:"pointer",fontSize:11,fontWeight:600,color:s.color,transition:"all .15s"}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:s.color}}/>{s.code}
+          </button>
+        ))}
       </div>
 
       {/* Table */}
-      <div style={{background:"white",borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9",overflow:"auto"}}>
+      <div style={{background:"white",borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9",overflow:"auto",flex:1}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
           <thead>
-            <tr style={{background:"#f8fafc",borderBottom:"1.5px solid #e2e8f0"}}>
-              {[["sn","#",36],["client","Client",130],["name","Candidate",150],["designation","Position",130],["location","Location",90],["phone","Phone",110],["offerMonth","Offer Month",110],["proposedDOJ","Proposed DOJ",110],["actualDOJ","Actual DOJ",110],["owner","Owner",110],["joiningStatus","Status",100],["ctc","CTC/Mo",90],["statusCode","Code",70]].map(([k,l,w])=>(
-                <th key={k} onClick={()=>toggleSort(k)} style={{padding:"10px 12px",textAlign:"left",fontWeight:700,color:"#475569",cursor:"pointer",userSelect:"none",fontSize:11,textTransform:"uppercase",letterSpacing:.4,minWidth:w}}>
+            <tr style={{background:"#f8fafc",borderBottom:"1.5px solid #e2e8f0",position:"sticky",top:0,zIndex:2}}>
+              {[["sn","#",40],["client","Client",130],["name","Candidate",140],["designation","Position",130],["location","Location",90],["offerMonth","Offer Month",110],["proposedDOJ","Proposed DOJ",110],["actualDOJ","Actual DOJ",110],["owner","Owner",100],["joiningStatus","Status",100],["ctc","CTC/Mo",90],["statusCode","Code",70]].map(([k,l,w])=>(
+                <th key={k} onClick={()=>toggleSort(k)} style={{padding:"10px 12px",textAlign:"left",fontWeight:700,color:"#475569",cursor:"pointer",userSelect:"none",fontSize:11,textTransform:"uppercase",letterSpacing:.4,minWidth:w,whiteSpace:"nowrap"}}>
                   {l}<SortArrow k={k}/>
                 </th>
               ))}
@@ -918,26 +954,27 @@ function CandidatesPage({ candidates, masters, user, onAdd, onEdit, onDelete, on
             </tr>
           </thead>
           <tbody>
-            {shown.length===0 && <tr><td colSpan={14} style={{padding:40,textAlign:"center",color:"#94a3b8"}}>No candidates found. Try adjusting your filters.</td></tr>}
+            {shown.length===0 && <tr><td colSpan={13} style={{padding:40,textAlign:"center",color:"#94a3b8"}}>No candidates found. Try adjusting your filters.</td></tr>}
             {shown.map((c,i)=>(
-              <tr key={c.id} style={{borderBottom:"1px solid #f8fafc",background:i%2===0?"white":"#fcfcfd"}} onMouseEnter={e=>e.currentTarget.style.background="#f0f9ff"} onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"white":"#fcfcfd"}>
-                <td style={{padding:"10px 12px",color:"#94a3b8",fontWeight:600}}>{c.sn}</td>
-                <td style={{padding:"10px 12px",fontWeight:600,color:"#1e293b"}}>{c.client||"—"}</td>
-                <td style={{padding:"10px 12px"}}>
+              <tr key={c.id} style={{borderBottom:"1px solid #f8fafc",background:i%2===0?"white":"#fcfcfd"}}
+                onMouseEnter={e=>e.currentTarget.style.background="#f0f9ff"}
+                onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"white":"#fcfcfd"}>
+                <td style={{padding:"9px 12px",color:"#94a3b8",fontWeight:600,fontSize:12}}>{c.sn}</td>
+                <td style={{padding:"9px 12px",fontWeight:600,color:"#1e293b",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.client||"—"}</td>
+                <td style={{padding:"9px 12px"}}>
                   <div style={{fontWeight:600,color:"#0f172a"}}>{c.name}</div>
-                  {c.phone&&<div style={{fontSize:11,color:"#94a3b8"}}>{c.phone}</div>}
+                  {c.phone&&<div style={{fontSize:11,color:"#94a3b8",fontFamily:"monospace"}}>{c.phone}</div>}
                 </td>
-                <td style={{padding:"10px 12px",color:"#475569"}}>{c.designation||"—"}</td>
-                <td style={{padding:"10px 12px",color:"#475569"}}>{c.location||"—"}</td>
-                <td style={{padding:"10px 12px",color:"#64748b",fontFamily:"monospace"}}>{c.phone||"—"}</td>
-                <td style={{padding:"10px 12px",color:"#64748b"}}>{fmtDate(c.offerMonth)}</td>
-                <td style={{padding:"10px 12px",color:"#64748b"}}>{fmtDate(c.proposedDOJ)}</td>
-                <td style={{padding:"10px 12px",color:"#64748b"}}>{fmtDate(c.actualDOJ)}</td>
-                <td style={{padding:"10px 12px",color:"#475569"}}>{c.owner||"—"}</td>
-                <td style={{padding:"10px 12px"}}><Badge status={c.joiningStatus}/></td>
-                <td style={{padding:"10px 12px",color:"#0f172a",fontWeight:600}}>₹{fmt(c.ctc)}</td>
-                <td style={{padding:"10px 12px"}}><Badge code={c.statusCode}/></td>
-                <td style={{padding:"10px 12px"}}>
+                <td style={{padding:"9px 12px",color:"#475569",maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.designation||"—"}</td>
+                <td style={{padding:"9px 12px",color:"#475569"}}>{c.location||"—"}</td>
+                <td style={{padding:"9px 12px",color:"#64748b",whiteSpace:"nowrap"}}>{fmtDate(c.offerMonth)}</td>
+                <td style={{padding:"9px 12px",color:"#64748b",whiteSpace:"nowrap"}}>{fmtDate(c.proposedDOJ)}</td>
+                <td style={{padding:"9px 12px",color:"#64748b",whiteSpace:"nowrap"}}>{fmtDate(c.actualDOJ)}</td>
+                <td style={{padding:"9px 12px",color:"#475569"}}>{c.owner||"—"}</td>
+                <td style={{padding:"9px 12px"}}><Badge status={c.joiningStatus}/></td>
+                <td style={{padding:"9px 12px",color:"#0f172a",fontWeight:600,whiteSpace:"nowrap"}}>₹{fmt(c.ctc)}</td>
+                <td style={{padding:"9px 12px"}}><Badge code={c.statusCode}/></td>
+                <td style={{padding:"9px 12px"}}>
                   <div style={{display:"flex",gap:4}}>
                     <button onClick={()=>onView(c)} style={{padding:5,background:"#f0f9ff",border:"none",borderRadius:6,cursor:"pointer",color:"#2563eb",display:"flex"}} title="View"><Icon name="eye" size={13}/></button>
                     {canEdit&&<button onClick={()=>onEdit(c)} style={{padding:5,background:"#f0fdf4",border:"none",borderRadius:6,cursor:"pointer",color:"#16a34a",display:"flex"}} title="Edit"><Icon name="edit" size={13}/></button>}
@@ -950,15 +987,29 @@ function CandidatesPage({ candidates, masters, user, onAdd, onEdit, onDelete, on
         </table>
       </div>
 
-      {/* Pagination */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:14,flexWrap:"wrap",gap:8}}>
-        <span style={{fontSize:13,color:"#64748b"}}>Showing {Math.min((page-1)*PER+1,filtered.length)}–{Math.min(page*PER,filtered.length)} of {filtered.length}</span>
-        <div style={{display:"flex",gap:4}}>
-          {[1,page-1].filter(p=>p>=1&&p<page).filter((v,i,a)=>a.indexOf(v)===i).concat([page]).concat([page+1,pages].filter(p=>p>page&&p<=pages).filter((v,i,a)=>a.indexOf(v)===i)).slice(0,7).map(p=>(
-            <button key={p} onClick={()=>setPage(p)} style={{width:32,height:32,border:"1.5px solid "+(p===page?"#2563eb":"#e2e8f0"),borderRadius:7,background:p===page?"#2563eb":"white",color:p===page?"white":"#374151",fontWeight:600,cursor:"pointer",fontSize:13}}>{p}</button>
-          ))}
+      {/* Pagination (only shown when not showing all) */}
+      {!showAll && pages > 1 && (
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:12,flexWrap:"wrap",gap:8}}>
+          <span style={{fontSize:13,color:"#64748b"}}>
+            Showing {Math.min((page-1)*PER+1,filtered.length)}–{Math.min(page*PER,filtered.length)} of {filtered.length}
+            <span style={{marginLeft:8,color:"#94a3b8"}}>· {PER} per page</span>
+          </span>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            <button onClick={()=>setPage(1)} disabled={page===1} style={{padding:"5px 10px",borderRadius:7,border:"1.5px solid #e2e8f0",background:"white",color:page===1?"#cbd5e1":"#374151",cursor:page===1?"default":"pointer",fontSize:12,fontWeight:600}}>«</button>
+            <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} style={{padding:"5px 10px",borderRadius:7,border:"1.5px solid #e2e8f0",background:"white",color:page===1?"#cbd5e1":"#374151",cursor:page===1?"default":"pointer",fontSize:12,fontWeight:600}}>‹</button>
+            {Array.from({length:Math.min(7,pages)},(_,i)=>{
+              let p; const half=3;
+              if(pages<=7) p=i+1;
+              else if(page<=half+1) p=i+1;
+              else if(page>=pages-half) p=pages-6+i;
+              else p=page-half+i;
+              return <button key={p} onClick={()=>setPage(p)} style={{width:32,height:32,borderRadius:7,border:"1.5px solid "+(p===page?"#2563eb":"#e2e8f0"),background:p===page?"#2563eb":"white",color:p===page?"white":"#374151",fontWeight:600,cursor:"pointer",fontSize:13}}>{p}</button>;
+            })}
+            <button onClick={()=>setPage(p=>Math.min(pages,p+1))} disabled={page===pages} style={{padding:"5px 10px",borderRadius:7,border:"1.5px solid #e2e8f0",background:"white",color:page===pages?"#cbd5e1":"#374151",cursor:page===pages?"default":"pointer",fontSize:12,fontWeight:600}}>›</button>
+            <button onClick={()=>setPage(pages)} disabled={page===pages} style={{padding:"5px 10px",borderRadius:7,border:"1.5px solid #e2e8f0",background:"white",color:page===pages?"#cbd5e1":"#374151",cursor:page===pages?"default":"pointer",fontSize:12,fontWeight:600}}>»</button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
