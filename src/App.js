@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 
 // ─── SEED DATA ───────────────────────────────────────────────────────────────
 const INITIAL_MASTERS = {
@@ -784,7 +784,7 @@ export default function App() {
   const [modal,setModal]=useState(null); // {type, data}
   const [auditLogs,setAuditLogs]=useState([]);
   const [nextId,setNextId]=useState(SEED_CANDIDATES.length+1);
-  const [sidebarOpen,setSidebarOpen]=useState(false);
+  const [sidebarOpen]=useState(false);
 
   const log = useCallback((action,record,detail="") => {
     setAuditLogs(l=>[{time:new Date().toLocaleString("en-IN"),user:user?.name||"?",action,record,detail},...l].slice(0,100));
