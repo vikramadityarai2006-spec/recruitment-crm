@@ -1,6 +1,5 @@
 
-import React, { useState, useMemo, useCallback } from "react";
-
+import { useState, useMemo, useCallback } from "react";
 // ─── SEED DATA ───────────────────────────────────────────────────────────────
 const INITIAL_MASTERS = {
   clients: ["Alicon","Metal Seam","Zytex","Gyandhara","Vista Processed Foods","Kanoria","Skylark Food","Payal Group","CEC","Cornish","Avadh Rail","Proind","SM Auto","Sogefi","Modern","FIL Industries","CMR","Marc Lab","Translight Scaff","Descon"],
@@ -784,7 +783,7 @@ export default function App() {
   const [modal,setModal]=useState(null); // {type, data}
   const [auditLogs,setAuditLogs]=useState([]);
   const [nextId,setNextId]=useState(SEED_CANDIDATES.length+1);
-  const [sidebarOpen]=useState(false);
+  const [,setSidebarOpen]=useState(false);
 
   const log = useCallback((action,record,detail="") => {
     setAuditLogs(l=>[{time:new Date().toLocaleString("en-IN"),user:user?.name||"?",action,record,detail},...l].slice(0,100));
