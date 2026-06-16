@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── API ──────────────────────────────────────────────────────────────────────
-const BASE_URL = "https://recruitment-crm-fawn.vercel.app/api";
+const BASE_URL = "https://crm-api-iota-two.vercel.app/api";
 const getToken = () => localStorage.getItem("crm_token");
 const H = () => ({ "Content-Type":"application/json", ...(getToken()?{Authorization:`Bearer ${getToken()}`}:{}) });
 const api = {
