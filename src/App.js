@@ -259,7 +259,7 @@ function CandidatesPage({ masters, user, refresh, onAdd, onEdit, onDelete, onVie
   const load = useCallback(async () => {
     setLoading(true);
     const params = { page, limit: PER, sortBy: "id", sortDir: "desc" };
-    if (search) params.search = search;
+    if (debouncedSearch) params.search = debouncedSearch;
     if (filters.client) params.client = filters.client;
     if (filters.owner) params.owner = filters.owner;
     if (filters.status) params.status = filters.status;
@@ -270,7 +270,7 @@ function CandidatesPage({ masters, user, refresh, onAdd, onEdit, onDelete, onVie
       setResult(res);
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, [page, search, filters, refresh]);
+  }, [page, debouncedSearch, filters, refresh]);
 
   useEffect(() => { load(); }, [load]);
 
