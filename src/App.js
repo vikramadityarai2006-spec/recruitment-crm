@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // ─── API ──────────────────────────────────────────────────────────────────────
-const BASE_URL = "https://crm-api-iota-two.vercel.app/api";
+const BASE_URL = "https://recruitment-crm-fawn.vercel.app/api";
 const getToken = () => localStorage.getItem("crm_token");
 const H = () => ({ "Content-Type":"application/json", ...(getToken()?{Authorization:`Bearer ${getToken()}`}:{}) });
 const api = {
@@ -97,10 +97,27 @@ function Modal({open,onClose,title,children,wide}){
   </div>;
 }
 
+// ─── DELETE CONFIRM MODAL ─────────────────────────────────────────────────────
+function DeleteConfirmModal({open,onClose,onConfirm,candidateName}){
+  if(!open)return null;
+  return<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+    <div style={{background:"white",borderRadius:16,width:"100%",maxWidth:400,boxShadow:"0 25px 50px rgba(0,0,0,.3)",padding:28,textAlign:"center"}} onClick={e=>e.stopPropagation()}>
+      <div style={{width:52,height:52,borderRadius:"50%",background:"#fee2e2",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+        <Icon name="trash" size={22}/></div>
+      <h3 style={{margin:"0 0 8px",fontSize:18,fontWeight:700,color:"#0f172a"}}>Delete Candidate?</h3>
+      <p style={{margin:"0 0 24px",fontSize:14,color:"#64748b"}}>This will permanently remove <strong>{candidateName}</strong> from the database. This action cannot be undone.</p>
+      <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+        <button onClick={onClose} style={{padding:"10px 24px",background:"#f1f5f9",border:"none",borderRadius:9,fontWeight:600,cursor:"pointer",fontSize:14,color:"#374151"}}>Cancel</button>
+        <button onClick={onConfirm} style={{padding:"10px 24px",background:"#dc2626",color:"white",border:"none",borderRadius:9,fontWeight:600,cursor:"pointer",fontSize:14}}>Yes, Delete</button>
+      </div>
+    </div>
+  </div>;
+}
+
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 function LoginScreen({onLogin}){
-  const [email,setEmail]=useState("admin@ampleleap.com");
-  const [password,setPassword]=useState("admin123");
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   const handle=async(e)=>{
@@ -198,8 +215,10 @@ function CandidateForm({initial,masters,onSave,onCancel}){
 function Dashboard(){
   const [stats,setStats]=useState(null);
   const [loading,setLoading]=useState(true);
-  useEffect(()=>{api.getDashboard().then(d=>{setStats(d);setLoading(false);});},[]);
+  const [error,setError]=useState("");
+  useEffect(()=>{api.getDashboard().then(d=>{setStats(d);setLoading(false);}).catch(()=>{setError("Failed to load dashboard.");setLoading(false);});},[]);
   if(loading)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200,color:"#64748b"}}>Loading dashboard...</div>;
+  if(error)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200,color:"#ef4444"}}>{error}</div>;
   if(!stats)return null;
   const cards=[
     {label:"Total Candidates",value:stats.total,color:"#2563eb"},
@@ -267,8 +286,8 @@ function CandidatesPage({masters,user,onAdd,onEdit,onDelete,onView}){
     if(filters.status)params.status=filters.status;
     if(filters.statusCode)params.statusCode=filters.statusCode;
     if(filters.location)params.location=filters.location;
-    const res=await api.getCandidates(params);
-    setData(res);setLoading(false);
+    try{const res=await api.getCandidates(params);setData(res);}catch{setData({candidates:[],total:0,pages:1});}
+    setLoading(false);
   },[page,search,filters]);
 
   useEffect(()=>{load();},[load]);
@@ -285,8 +304,6 @@ function CandidatesPage({masters,user,onAdd,onEdit,onDelete,onView}){
     const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="candidates.csv";a.click();
   };
 
-  const SortArr=({k})=><span style={{color:"#94a3b8",fontSize:10,marginLeft:2}}>⇅</span>;
-
   return<div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:10}}>
       <div>
@@ -301,7 +318,7 @@ function CandidatesPage({masters,user,onAdd,onEdit,onDelete,onView}){
           <Icon name="plus" size={14}/> Add Candidate
         </button>}
         <button onClick={exportCSV} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",background:"#f1f5f9",border:"none",borderRadius:9,fontWeight:600,cursor:"pointer",fontSize:13,color:"#374151"}}>
-          <Icon name="download" size={14}/> Export CSV
+          <Icon name="download" size={14}/> Export Page (CSV)
         </button>
       </div>
     </div>
@@ -349,7 +366,7 @@ function CandidatesPage({masters,user,onAdd,onEdit,onDelete,onView}){
           {(data.candidates||[]).map((c,i)=><tr key={c.id} style={{borderBottom:"1px solid #f8fafc",background:i%2===0?"white":"#fcfcfd"}} onMouseEnter={e=>e.currentTarget.style.background="#f0f9ff"} onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"white":"#fcfcfd"}>
             <td style={{padding:"10px 12px",color:"#94a3b8",fontWeight:600}}>{c.id}</td>
             <td style={{padding:"10px 12px",fontWeight:600,color:"#1e293b"}}>{c.clientName||"—"}</td>
-            <td style={{padding:"10px 12px"}}><div style={{fontWeight:600,color:"#0f172a"}}>{c.candidateName}</div>{c.phone&&<div style={{fontSize:11,color:"#94a3b8"}}>{c.phone}</div>}</td>
+            <td style={{padding:"10px 12px"}}><div style={{fontWeight:600,color:"#0f172a"}}>{c.candidateName}</div></td>
             <td style={{padding:"10px 12px",color:"#475569"}}>{c.designation||"—"}</td>
             <td style={{padding:"10px 12px",color:"#475569"}}>{c.location||"—"}</td>
             <td style={{padding:"10px 12px",color:"#64748b",fontFamily:"monospace"}}>{c.phone||"—"}</td>
@@ -363,7 +380,7 @@ function CandidatesPage({masters,user,onAdd,onEdit,onDelete,onView}){
               <div style={{display:"flex",gap:4}}>
                 <button onClick={()=>onView(c)} style={{padding:5,background:"#f0f9ff",border:"none",borderRadius:6,cursor:"pointer",color:"#2563eb",display:"flex"}} title="View"><Icon name="eye" size={13}/></button>
                 {canEdit&&<button onClick={()=>onEdit(c)} style={{padding:5,background:"#f0fdf4",border:"none",borderRadius:6,cursor:"pointer",color:"#16a34a",display:"flex"}} title="Edit"><Icon name="edit" size={13}/></button>}
-                {canDelete&&<button onClick={()=>onDelete(c.id)} style={{padding:5,background:"#fef2f2",border:"none",borderRadius:6,cursor:"pointer",color:"#dc2626",display:"flex"}} title="Delete"><Icon name="trash" size={13}/></button>}
+                {canDelete&&<button onClick={()=>onDelete(c)} style={{padding:5,background:"#fef2f2",border:"none",borderRadius:6,cursor:"pointer",color:"#dc2626",display:"flex"}} title="Delete"><Icon name="trash" size={13}/></button>}
               </div>
             </td>
           </tr>)}
@@ -452,12 +469,14 @@ function MastersPage({masters,reloadMasters}){
 function AuditPage(){
   const [logs,setLogs]=useState([]);
   const [loading,setLoading]=useState(true);
-  useEffect(()=>{api.getAudit().then(d=>{setLogs(Array.isArray(d)?d:[]);setLoading(false);});},[]);
+  const [error,setError]=useState("");
+  useEffect(()=>{api.getAudit().then(d=>{setLogs(Array.isArray(d)?d:[]);setLoading(false);}).catch(()=>{setError("Failed to load audit logs.");setLoading(false);});},[]);
   return<div>
     <h2 style={{fontSize:22,fontWeight:800,color:"#0f172a",margin:"0 0 4px"}}>Audit Log</h2>
     <p style={{color:"#64748b",margin:"0 0 20px",fontSize:14}}>Track all changes made across all users</p>
     <div style={{background:"white",borderRadius:14,overflow:"auto",boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9"}}>
       {loading?<div style={{padding:40,textAlign:"center",color:"#94a3b8"}}>Loading logs...</div>:
+      error?<div style={{padding:40,textAlign:"center",color:"#ef4444"}}>{error}</div>:
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
         <thead><tr style={{background:"#f8fafc",borderBottom:"1.5px solid #e2e8f0"}}>
           {["Time","User","Action","Record","Details"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:.4}}>{h}</th>)}
@@ -482,12 +501,13 @@ export default function App(){
   const [user,setUser]=useState(()=>{
     const t=localStorage.getItem("crm_token");
     if(!t)return null;
-    try{const p=JSON.parse(atob(t.split(".")[1]));return{id:p.id,name:p.name,email:p.email,role:p.role};}
+    try{const p=JSON.parse(atob(t.split(".")[1]));if(p.exp&&p.exp*1000<Date.now()){localStorage.removeItem("crm_token");return null;}return{id:p.id,name:p.name,email:p.email,role:p.role};}
     catch{return null;}
   });
   const [page,setPage]=useState("dashboard");
   const [masters,setMasters]=useState({clients:[],owners:[],joiningStatus:[],resignationStatus:[],statusCodes:[]});
   const [modal,setModal]=useState(null);
+  const [deleteTarget,setDeleteTarget]=useState(null);
   const [refreshKey,setRefreshKey]=useState(0);
 
   const loadMasters=useCallback(()=>{
@@ -502,10 +522,11 @@ export default function App(){
   const handleAdd=()=>setModal({type:"add"});
   const handleEdit=(c)=>setModal({type:"edit",data:c});
   const handleView=(c)=>setModal({type:"view",data:c});
-  const handleDelete=async(id)=>{
-    if(!window.confirm("Delete this candidate?"))return;
-    await api.deleteCandidate(id);
-    setRefreshKey(k=>k+1);
+  const handleDelete=(candidate)=>setDeleteTarget(candidate);
+  const confirmDelete=async()=>{
+    if(!deleteTarget)return;
+    await api.deleteCandidate(deleteTarget.id).catch(console.error);
+    setDeleteTarget(null);setRefreshKey(k=>k+1);
   };
   const handleSave=async(form)=>{
     const payload={
@@ -586,5 +607,6 @@ export default function App(){
     <Modal open={modal?.type==="view"} onClose={()=>setModal(null)} title="Candidate Profile">
       <ViewCandidate candidate={modal?.data}/>
     </Modal>
+    <DeleteConfirmModal open={!!deleteTarget} onClose={()=>setDeleteTarget(null)} onConfirm={confirmDelete} candidateName={deleteTarget?.candidateName}/>
   </div>;
 }
