@@ -250,11 +250,17 @@ function Dashboard() {
 function CandidatesPage({ masters, user, refresh, onAdd, onEdit, onDelete, onView }) {
   const [result, setResult] = useState({ candidates: [], total: 0, pages: 1 });
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filters, setFilters] = useState({ client: "", owner: "", status: "", statusCode: "", location: "" });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const PER = 20;
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const load = useCallback(async () => {
     setLoading(true);
