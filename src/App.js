@@ -10,7 +10,7 @@ const api = {
   getCandidates: (params = {}) => fetch(`${BASE_URL}/candidates?${new URLSearchParams(params)}`, { headers: H() }).then(r => r.json()),
   createCandidate: (d) => fetch(`${BASE_URL}/candidates`, { method: "POST", headers: H(), body: JSON.stringify(d) }).then(r => r.json()),
   updateCandidate: (id, d) => fetch(`${BASE_URL}/candidates/${id}`, { method: "PUT", headers: H(), body: JSON.stringify(d) }).then(r => r.json()),
-  deleteCandidate: (id) => fetch(`${BASE_URL}/candidates/${id}`, { method: "DELETE", headers: H() }).then(r => r.json()),
+  deleteCandidate: (id) => fetch(`${BASE_URL}/candidates/delete`, { method: "POST", headers: H(), body: JSON.stringify({ id }) }).then(r => r.json()),
   getMasters: () => fetch(`${BASE_URL}/masters`, { headers: H() }).then(r => r.json()),
   getDashboard: () => fetch(`${BASE_URL}/dashboard`, { headers: H() }).then(r => r.json()),
   getAudit: () => fetch(`${BASE_URL}/audit`, { headers: H() }).then(r => r.json()),
