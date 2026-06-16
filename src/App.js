@@ -501,7 +501,7 @@ export default function App(){
   const [user,setUser]=useState(()=>{
     const t=localStorage.getItem("crm_token");
     if(!t)return null;
-    try{const p=JSON.parse(atob(t.split(".")[1]));if(p.exp&&p.exp*1000<Date.now()){localStorage.removeItem("crm_token");return null;}return{id:p.id,name:p.name,email:p.email,role:p.role};}
+    try{const p=JSON.parse(atob(t.split(".")[1]));if(p.exp&&p.exp*1000<Date.now()){localStorage.removeItem("crm_token");return null;}return{id:p.id,name:p.name,email:p.email,role:(p.role||"").toLowerCase()};}
     catch{return null;}
   });
   const [page,setPage]=useState("dashboard");
@@ -516,7 +516,7 @@ export default function App(){
 
   useEffect(()=>{loadMasters();},[loadMasters]);
 
-  const handleLogin=(u)=>{setUser(u);};
+  const handleLogin=(u)=>{setUser({...u,role:(u.role||"").toLowerCase()});};
   const handleLogout=()=>{localStorage.removeItem("crm_token");setUser(null);};
 
   const handleAdd=()=>setModal({type:"add"});
