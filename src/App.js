@@ -421,51 +421,283 @@ function ViewCandidate({ c }) {
   </div>;
 }
 
-// ─── MASTERS ─────────────────────────────────────────────────────────────────
+// ─── ENHANCED MASTERS PAGE ───────────────────────────────────────────────────
 function Masters({ masters, reload }) {
-  const [tab,setTab]=useState("clients");
-  const [val,setVal]=useState("");
-  const [saving,setSaving]=useState(false);
-  const [msg,setMsg]=useState("");
-  const tabs=[{k:"clients",l:"Clients"},{k:"owners",l:"Owners"},{k:"joiningStatus",l:"Joining Status"},{k:"resignationStatus",l:"Resignation"}];
-  const add=async()=>{
-    if(!val.trim()) return;
-    setSaving(true);
-    await api.addMaster(tab,val.trim());
-    setVal("");setSaving(false);setMsg("✅ Added!");setTimeout(()=>setMsg(""),2000);reload();
+  const [tab, setTab] = useState("clients");
+  const [val, setVal] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState({ text: "", type: "success" });
+  const [editId, setEditId] = useState(null);
+  const [editVal, setEditVal] = useState("");
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "recruiter" });
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [newCode, setNewCode] = useState({ code: "", label: "", color: "#3b82f6" });
+  const [savingCode, setSavingCode] = useState(false);
+
+  const tabs = [
+    { k: "clients", l: "Clients" },
+    { k: "owners", l: "Owners" },
+    { k: "joiningStatus", l: "Joining Status" },
+    { k: "resignationStatus", l: "Resignation" },
+    { k: "locations", l: "Locations" },
+    { k: "designations", l: "Designations" },
+    { k: "statusCodes", l: "Status Codes" },
+    { k: "users", l: "👥 Users" },
+  ];
+
+  const showMsg = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "success" }), 3000); };
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try { const r = await fetch(`${BASE_URL}/users`, { headers: H() }); setUsers(await r.json()); }
+    catch (e) { console.error(e); }
+    setLoadingUsers(false);
   };
+
+  useEffect(() => { if (tab === "users") loadUsers(); }, [tab]);
+
+  const addItem = async () => {
+    if (!val.trim()) return;
+    setSaving(true);
+    try {
+      const r = await api.addMaster(tab, val.trim());
+      if (r.error) { showMsg(r.error, "error"); }
+      else { showMsg(`✅ "${val.trim()}" added!`); setVal(""); reload(); }
+    } catch (e) { showMsg(e.message, "error"); }
+    setSaving(false);
+  };
+
+  const deleteItem = async (id, value) => {
+    if (!window.confirm(`Delete "${value}"?`)) return;
+    try {
+      const r = await fetch(`${BASE_URL}/masters/${id}`, { method: "DELETE", headers: H() });
+      const data = await r.json();
+      if (data.error) showMsg(data.error, "error");
+      else { showMsg(`🗑️ "${value}" deleted!`); reload(); }
+    } catch (e) { showMsg(e.message, "error"); }
+  };
+
+  const startEdit = (id, value) => { setEditId(id); setEditVal(value); };
+
+  const saveEdit = async (id) => {
+    if (!editVal.trim()) return;
+    try {
+      const r = await fetch(`${BASE_URL}/masters/${id}`, { method: "PUT", headers: H(), body: JSON.stringify({ value: editVal }) });
+      const data = await r.json();
+      if (data.error) showMsg(data.error, "error");
+      else { showMsg("✅ Updated!"); setEditId(null); reload(); }
+    } catch (e) { showMsg(e.message, "error"); }
+  };
+
+  const addUser = async () => {
+    if (!newUser.name || !newUser.email || !newUser.password) { showMsg("All fields required", "error"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`${BASE_URL}/users`, { method: "POST", headers: H(), body: JSON.stringify(newUser) });
+      const data = await r.json();
+      if (data.error) showMsg(data.error, "error");
+      else { showMsg(`✅ User "${newUser.name}" created!`); setNewUser({ name: "", email: "", password: "", role: "recruiter" }); setShowUserForm(false); loadUsers(); }
+    } catch (e) { showMsg(e.message, "error"); }
+    setSaving(false);
+  };
+
+  const toggleUser = async (id, active, name) => {
+    if (!window.confirm(`${active ? "Deactivate" : "Activate"} "${name}"?`)) return;
+    try {
+      const r = await fetch(`${BASE_URL}/users/${id}`, { method: "PUT", headers: H(), body: JSON.stringify({ active: !active }) });
+      const data = await r.json();
+      if (data.error) showMsg(data.error, "error");
+      else { showMsg(`✅ User ${active ? "deactivated" : "activated"}!`); loadUsers(); }
+    } catch (e) { showMsg(e.message, "error"); }
+  };
+
+  const changeRole = async (id, role, name) => {
+    try {
+      const r = await fetch(`${BASE_URL}/users/${id}`, { method: "PUT", headers: H(), body: JSON.stringify({ role }) });
+      const data = await r.json();
+      if (data.error) showMsg(data.error, "error");
+      else { showMsg(`✅ ${name}'s role changed to ${role}!`); loadUsers(); }
+    } catch (e) { showMsg(e.message, "error"); }
+  };
+
+  const addStatusCode = async () => {
+    if (!newCode.code || !newCode.label || !newCode.color) { showMsg("All fields required", "error"); return; }
+    setSavingCode(true);
+    try {
+      const r = await fetch(`${BASE_URL}/masters/status-codes`, { method: "POST", headers: H(), body: JSON.stringify(newCode) });
+      const data = await r.json();
+      if (data.error) showMsg(data.error, "error");
+      else { showMsg(`✅ Status code "${newCode.code}" saved!`); setNewCode({ code: "", label: "", color: "#3b82f6" }); reload(); }
+    } catch (e) { showMsg(e.message, "error"); }
+    setSavingCode(false);
+  };
+
+  const deleteStatusCode = async (code) => {
+    if (!window.confirm(`Delete status code "${code}"?`)) return;
+    try {
+      const r = await fetch(`${BASE_URL}/masters/status-codes`, { method: "DELETE", headers: H(), body: JSON.stringify({ code }) });
+      const data = await r.json();
+      if (data.error) showMsg(data.error, "error");
+      else { showMsg(`🗑️ "${code}" deleted!`); reload(); }
+    } catch (e) { showMsg(e.message, "error"); }
+  };
+
+  const fullItems = masters._full?.[tab] || [];
+  const isSpecial = tab === "statusCodes" || tab === "users";
+
+  const B = (props) => <button {...props} style={{ ...props.style, cursor: "pointer", border: "none", fontFamily: "inherit" }}>{props.children}</button>;
+
   return <div>
-    <h2 style={{fontSize:20,fontWeight:800,color:"#0f172a",margin:"0 0 4px"}}>Master Data</h2>
-    <p style={{color:"#64748b",margin:"0 0 18px",fontSize:13}}>Manage dropdown options across the application.</p>
-    <div style={{display:"flex",gap:5,marginBottom:16,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.k} onClick={()=>setTab(t.k)} style={{padding:"7px 14px",borderRadius:7,border:"1.5px solid "+(tab===t.k?"#2563eb":"#e2e8f0"),background:tab===t.k?"#2563eb":"white",color:tab===t.k?"white":"#374151",fontWeight:600,cursor:"pointer",fontSize:12}}>{t.l}</button>)}
+    <div style={{ marginBottom: 20 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>Master Data</h2>
+      <p style={{ color: "#64748b", margin: "3px 0 0", fontSize: 13 }}>Manage all dropdown values, status codes and team members.</p>
     </div>
-    <div style={{background:"white",borderRadius:12,padding:20,boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9",maxWidth:520}}>
-      {msg&&<div style={{background:"#dcfce7",color:"#16a34a",padding:"7px 10px",borderRadius:7,marginBottom:10,fontSize:12,fontWeight:600}}>{msg}</div>}
-      <div style={{display:"flex",gap:7,marginBottom:16}}>
-        <input value={val} onChange={e=>setVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder={`Add new ${tabs.find(t=>t.k===tab)?.l?.replace(/s$/,"")||"item"}…`} style={{flex:1,padding:"8px 12px",borderRadius:7,border:"1.5px solid #e2e8f0",fontSize:13,outline:"none"}}/>
-        <button onClick={add} disabled={saving} style={{padding:"8px 14px",background:"#2563eb",color:"white",border:"none",borderRadius:7,fontWeight:700,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:4}}>
-          <Icon n="plus" s={13}/>{saving?"…":"Add"}
-        </button>
+
+    {msg.text && <div style={{ background: msg.type === "error" ? "#fee2e2" : "#dcfce7", color: msg.type === "error" ? "#991b1b" : "#166534", padding: "10px 16px", borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{msg.text}</div>}
+
+    {/* Tabs */}
+    <div style={{ display: "flex", gap: 5, marginBottom: 18, flexWrap: "wrap" }}>
+      {tabs.map(t => <B key={t.k} onClick={() => setTab(t.k)} style={{ padding: "7px 13px", borderRadius: 7, background: tab === t.k ? "#2563eb" : "white", color: tab === t.k ? "white" : "#374151", fontWeight: 600, fontSize: 12, border: `1.5px solid ${tab === t.k ? "#2563eb" : "#e2e8f0"}` }}>{t.l}</B>)}
+    </div>
+
+    {/* STATUS CODES TAB */}
+    {tab === "statusCodes" && <div>
+      <div style={{ background: "white", borderRadius: 12, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9", marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: "0 0 14px" }}>Add / Edit Status Code</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto auto", gap: 8, alignItems: "flex-end" }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block", marginBottom: 3 }}>CODE</label>
+            <input value={newCode.code} onChange={e => setNewCode(n => ({ ...n, code: e.target.value }))} placeholder="e.g. Purple" style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block", marginBottom: 3 }}>LABEL</label>
+            <input value={newCode.label} onChange={e => setNewCode(n => ({ ...n, label: e.target.value }))} placeholder="e.g. Special Case" style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block", marginBottom: 3 }}>COLOR</label>
+            <input type="color" value={newCode.color} onChange={e => setNewCode(n => ({ ...n, color: e.target.value }))} style={{ width: 44, height: 36, borderRadius: 7, border: "1.5px solid #e2e8f0", cursor: "pointer", padding: 2 }} />
+          </div>
+          <B onClick={addStatusCode} disabled={savingCode} style={{ padding: "8px 14px", background: "#2563eb", color: "white", borderRadius: 7, fontWeight: 700, fontSize: 12 }}>
+            {savingCode ? "Saving…" : "Save"}
+          </B>
+        </div>
       </div>
-      <div style={{maxHeight:350,overflow:"auto"}}>
-        {(masters[tab]||[]).map((item,i)=><div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:i%2?"#f8fafc":"white",borderRadius:7,marginBottom:4}}>
-          <span style={{fontSize:13,color:"#1e293b",fontWeight:500}}>{item}</span>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 10 }}>
+        {(masters.statusCodes || []).map(s => <div key={s.code} style={{ background: "white", borderRadius: 10, padding: "14px 16px", border: `2px solid ${s.color}44`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 16, height: 16, borderRadius: "50%", background: s.color, flexShrink: 0, boxShadow: `0 0 6px ${s.color}66` }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: s.color }}>{s.code}</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 1 }}>{s.label}</div>
+            </div>
+          </div>
+          <B onClick={() => deleteStatusCode(s.code)} style={{ padding: "4px 8px", background: "#fef2f2", color: "#dc2626", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>Delete</B>
         </div>)}
-        {!(masters[tab]||[]).length&&<div style={{textAlign:"center",color:"#94a3b8",padding:20,fontSize:13}}>No items yet.</div>}
       </div>
-    </div>
-    <div style={{marginTop:20}}>
-      <h3 style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:10}}>Status Code Reference</h3>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
-        {(masters.statusCodes||[]).map(s=><div key={s.code} style={{background:"white",borderRadius:9,padding:"10px 14px",border:`2px solid ${s.color}33`,display:"flex",alignItems:"center",gap:8}}>
-          <div style={{width:12,height:12,borderRadius:"50%",background:s.color,flexShrink:0}}/>
-          <div><div style={{fontWeight:700,fontSize:12,color:s.color}}>{s.code}</div><div style={{fontSize:10,color:"#64748b",marginTop:1}}>{s.label}</div></div>
+    </div>}
+
+    {/* USERS TAB */}
+    {tab === "users" && <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>Team Members ({users.length})</h3>
+        <B onClick={() => setShowUserForm(f => !f)} style={{ padding: "8px 14px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", borderRadius: 8, fontWeight: 600, fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
+          + Add Team Member
+        </B>
+      </div>
+
+      {showUserForm && <div style={{ background: "white", borderRadius: 12, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9", marginBottom: 16 }}>
+        <h4 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>New Team Member</h4>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+          {[["Full Name", "name", "text", "e.g. Rahul Sharma"], ["Email", "email", "email", "e.g. rahul@ampleleap.com"], ["Password", "password", "password", "min 6 characters"]].map(([l, k, t, p]) => <div key={k} style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block", marginBottom: 3, textTransform: "uppercase" }}>{l}</label>
+            <input type={t} value={newUser[k]} onChange={e => setNewUser(u => ({ ...u, [k]: e.target.value }))} placeholder={p} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+          </div>)}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block", marginBottom: 3, textTransform: "uppercase" }}>Role</label>
+            <select value={newUser.role} onChange={e => setNewUser(u => ({ ...u, role: e.target.value }))} style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", background: "white" }}>
+              <option value="admin">Admin</option>
+              <option value="recruiter">Recruiter</option>
+              <option value="viewer">Viewer</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <B onClick={() => setShowUserForm(false)} style={{ padding: "8px 16px", background: "#f1f5f9", color: "#374151", borderRadius: 7, fontWeight: 600, fontSize: 12 }}>Cancel</B>
+          <B onClick={addUser} disabled={saving} style={{ padding: "8px 16px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", borderRadius: 7, fontWeight: 600, fontSize: 12 }}>
+            {saving ? "Creating…" : "Create User"}
+          </B>
+        </div>
+      </div>}
+
+      {loadingUsers ? <div style={{ padding: 30, textAlign: "center" }}><Spin /></div> :
+        <div style={{ background: "white", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead><tr style={{ background: "#f8fafc", borderBottom: "1.5px solid #e2e8f0" }}>
+              {["Name", "Email", "Role", "Status", "Actions"].map(h => <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: .4 }}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {users.map((u, i) => <tr key={u.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 ? "#fcfcfd" : "white" }}>
+                <td style={{ padding: "10px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg,#2563eb,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white", flexShrink: 0 }}>{u.name[0]}</div>
+                    <span style={{ fontWeight: 600, color: "#0f172a" }}>{u.name}</span>
+                  </div>
+                </td>
+                <td style={{ padding: "10px 14px", color: "#64748b" }}>{u.email}</td>
+                <td style={{ padding: "10px 14px" }}>
+                  <select value={u.role} onChange={e => changeRole(u.id, e.target.value, u.name)} style={{ padding: "4px 8px", borderRadius: 6, border: "1.5px solid #e2e8f0", fontSize: 12, background: "white", outline: "none", cursor: "pointer" }}>
+                    <option value="admin">Admin</option>
+                    <option value="recruiter">Recruiter</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </td>
+                <td style={{ padding: "10px 14px" }}>
+                  <span style={{ padding: "3px 8px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: u.active ? "#dcfce7" : "#fee2e2", color: u.active ? "#16a34a" : "#dc2626" }}>
+                    {u.active ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td style={{ padding: "10px 14px" }}>
+                  <B onClick={() => toggleUser(u.id, u.active, u.name)} style={{ padding: "4px 10px", background: u.active ? "#fef2f2" : "#f0fdf4", color: u.active ? "#dc2626" : "#16a34a", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                    {u.active ? "Deactivate" : "Activate"}
+                  </B>
+                </td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>}
+    </div>}
+
+    {/* REGULAR TABS */}
+    {!isSpecial && <div style={{ background: "white", borderRadius: 12, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9", maxWidth: 560 }}>
+      <div style={{ display: "flex", gap: 7, marginBottom: 16 }}>
+        <input value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()} placeholder={`Add new ${tabs.find(t => t.k === tab)?.l?.replace(/s$/, "") || "item"}…`} style={{ flex: 1, padding: "8px 12px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none" }} />
+        <B onClick={addItem} disabled={saving} style={{ padding: "8px 14px", background: "#2563eb", color: "white", borderRadius: 7, fontWeight: 700, fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+          + {saving ? "Adding…" : "Add"}
+        </B>
+      </div>
+      <div style={{ maxHeight: 420, overflow: "auto" }}>
+        {fullItems.length === 0 && <div style={{ textAlign: "center", color: "#94a3b8", padding: 24, fontSize: 13 }}>No items yet. Add one above!</div>}
+        {fullItems.map((item, i) => <div key={item.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: i % 2 ? "#f8fafc" : "white", borderRadius: 7, marginBottom: 4, border: "1px solid #f1f5f9" }}>
+          {editId === item.id ? <div style={{ display: "flex", gap: 6, flex: 1 }}>
+            <input value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => e.key === "Enter" && saveEdit(item.id)} autoFocus style={{ flex: 1, padding: "5px 8px", borderRadius: 6, border: "1.5px solid #2563eb", fontSize: 13, outline: "none" }} />
+            <B onClick={() => saveEdit(item.id)} style={{ padding: "5px 10px", background: "#2563eb", color: "white", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>Save</B>
+            <B onClick={() => setEditId(null)} style={{ padding: "5px 10px", background: "#f1f5f9", color: "#374151", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>Cancel</B>
+          </div> : <>
+            <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 500, flex: 1 }}>{item.value}</span>
+            <div style={{ display: "flex", gap: 5 }}>
+              <B onClick={() => startEdit(item.id, item.value)} style={{ padding: "4px 8px", background: "#f0f9ff", color: "#2563eb", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>Edit</B>
+              <B onClick={() => deleteItem(item.id, item.value)} style={{ padding: "4px 8px", background: "#fef2f2", color: "#dc2626", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>Delete</B>
+            </div>
+          </>}
         </div>)}
       </div>
-    </div>
+    </div>}
   </div>;
 }
+
+
 
 // ─── AUDIT ────────────────────────────────────────────────────────────────────
 function Audit() {
