@@ -1,16 +1,21 @@
 // =====================================================
-// CANDIDATE IMPORT SCRIPT - Ample Leap CRM
-// Run this in the browser console while logged into
-// https://recruitment-crm-six.vercel.app
-// It will use your existing session token automatically.
+// RESET & REIMPORT — Ample Leap CRM
+// ONE-CLICK: Deletes ALL existing candidates, then
+// imports all 404 clean records from the Excel sheet.
+//
+// HOW TO RUN:
+// 1. Log in to https://recruitment-crm-six.vercel.app as ADMIN
+// 2. Press F12 → Console tab
+// 3. Paste this entire file → press Enter
+// 4. Wait ~3-4 minutes — do NOT close the tab
 // =====================================================
 
 (async () => {
-  const BASE = "https://crm-api-pied.vercel.app/api";
+  const BASE  = "https://crm-api-pied.vercel.app/api";
   const token = localStorage.getItem("crm_token");
 
   if (!token) {
-    console.error("❌ Not logged in! Please log in to the CRM first, then run this script.");
+    console.error("❌ Not logged in! Please log in as admin first.");
     return;
   }
 
@@ -19,7 +24,56 @@
     "Authorization": `Bearer ${token}`
   };
 
-  // ---- ALL 419 CANDIDATES FROM EXCEL ----
+  // ── STEP 1: DELETE ALL EXISTING CANDIDATES ──────────────────
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("🗑️  STEP 1: Deleting all existing candidates...");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+  let allIds = [];
+  let pg = 1;
+
+  while (true) {
+    const res  = await fetch(`${BASE}/candidates?page=${pg}&limit=100`, { headers: H });
+    const data = await res.json();
+    const ids  = (data.candidates || []).map(c => c.id);
+    if (ids.length === 0) break;
+    allIds = allIds.concat(ids);
+    console.log(`  📄 Fetched page ${pg} — ${ids.length} found (total so far: ${allIds.length})`);
+    if (pg >= data.pages) break;
+    pg++;
+    await new Promise(r => setTimeout(r, 100));
+  }
+
+  if (allIds.length === 0) {
+    console.log("  ✅ No existing candidates to delete.");
+  } else {
+    console.log(`  🗑️  Deleting ${allIds.length} records...`);
+    let deleted = 0, delFailed = 0;
+
+    for (const id of allIds) {
+      try {
+        const res = await fetch(`${BASE}/candidates?delete=1`, {
+          method: "POST", headers: H, body: JSON.stringify({ id })
+        });
+        if (res.ok) {
+          deleted++;
+          if (deleted % 25 === 0) console.log(`  🗑️  Deleted ${deleted}/${allIds.length}`);
+        } else {
+          delFailed++;
+        }
+      } catch { delFailed++; }
+      await new Promise(r => setTimeout(r, 60));
+    }
+
+    console.log(`  ✅ Deleted: ${deleted}  |  ❌ Failed: ${delFailed}`);
+  }
+
+  // ── STEP 2: IMPORT ALL CLEAN RECORDS ───────────────────────
+  console.log("");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("📥  STEP 2: Importing 404 candidates from Excel...");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
   const candidates = [
   {
     "clientName": "Metal Seam",
@@ -6487,41 +6541,36 @@
   }
 ];
 
-  console.log(`🚀 Starting import of ${candidates.length} candidates...`);
-  console.log("This will take a few minutes. Do not close the tab.");
-
   let created = 0, failed = 0, errors = [];
 
   for (let i = 0; i < candidates.length; i++) {
-    const c = candidates[i];
     try {
-      const res = await fetch(`${BASE}/candidates`, {
-        method: "POST",
-        headers: H,
-        body: JSON.stringify(c)
+      const res  = await fetch(`${BASE}/candidates`, {
+        method: "POST", headers: H, body: JSON.stringify(candidates[i])
       });
-      const data = await res.json();
-      if (res.ok && data.id) {
+      const body = await res.json();
+      if (res.ok && body.id) {
         created++;
-        if (created % 20 === 0) console.log(`✅ Progress: ${created}/${candidates.length}`);
+        if (created % 25 === 0) console.log(`  ✅ Imported ${created}/${candidates.length}`);
       } else {
         failed++;
-        errors.push({ index: i, name: c.candidateName, error: data.error || JSON.stringify(data) });
-        console.warn(`⚠️ Failed [${i+1}] ${c.candidateName}:`, data.error);
+        errors.push({ i: i + 1, name: candidates[i].candidateName, err: body.error });
       }
     } catch (e) {
       failed++;
-      errors.push({ index: i, name: c.candidateName, error: e.message });
-      console.error(`❌ Error [${i+1}] ${c.candidateName}:`, e.message);
+      errors.push({ i: i + 1, name: candidates[i].candidateName, err: e.message });
     }
-    // Small delay to avoid rate limiting
     await new Promise(r => setTimeout(r, 80));
   }
 
-  console.log("\n========== IMPORT COMPLETE ==========");
-  console.log(`✅ Created: ${created}`);
-  console.log(`❌ Failed:  ${failed}`);
-  if (errors.length > 0) {
-    console.log("Failed records:", errors);
-  }
+  // ── SUMMARY ─────────────────────────────────────────────────
+  console.log("");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("✅  ALL DONE — SUMMARY");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log(`  ✅ Candidates imported : ${created}`);
+  console.log(`  ❌ Failed              : ${failed}`);
+  if (errors.length > 0) console.log("  Failed records:", errors);
+  console.log("");
+  console.log("👉 Refresh the Candidates page to see all data.");
 })();
