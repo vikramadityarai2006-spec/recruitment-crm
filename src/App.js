@@ -26,6 +26,8 @@ export default function App() {
     clients: [], owners: [], joiningStatus: [],
     resignationStatus: [], statusCodes: [], _full: {}
   });
+  // Incrementing key causes Dashboard to re-fetch when candidates change
+  const [dashRefresh, setDashRefresh] = useState(0);
 
   const loadMasters = useCallback(() => {
     if (user) api.getMasters().then(m => setMasters(m || {})).catch(console.error);
@@ -36,6 +38,9 @@ export default function App() {
   if (!user) return <Login onLogin={u => setUser(u)} />;
 
   const logout = () => { localStorage.removeItem("crm_token"); setUser(null); };
+
+  // Called after any candidate save/delete
+  const onCandidateChange = () => setDashRefresh(k => k + 1);
 
   const nav = [
     { k: "dashboard", l: "Dashboard", i: "dash" },
@@ -101,8 +106,8 @@ export default function App() {
 
         {/* Page Content */}
         <div style={{ padding: 22, flex: 1 }}>
-          {page === "dashboard"  && <Dashboard />}
-          {page === "candidates" && <Candidates masters={masters} user={user} />}
+          {page === "dashboard"  && <Dashboard refreshKey={dashRefresh} />}
+          {page === "candidates" && <Candidates masters={masters} user={user} onDataChange={onCandidateChange} />}
           {page === "companies"  && <Companies user={user} />}
           {page === "masters"    && user.role === "admin" && <Masters masters={masters} reload={loadMasters} />}
           {page === "audit"      && user.role === "admin" && <Audit />}

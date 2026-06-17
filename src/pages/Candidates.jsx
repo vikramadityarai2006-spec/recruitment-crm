@@ -40,7 +40,7 @@ function ViewCandidate({ c }) {
   );
 }
 
-export default function Candidates({ masters, user }) {
+export default function Candidates({ masters, user, onDataChange }) {
   const [result, setResult] = useState({ candidates: [], total: 0, pages: 1 });
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({ client: "", owner: "", status: "", statusCode: "", location: "" });
@@ -91,6 +91,7 @@ export default function Candidates({ masters, user }) {
       const r = await api.deleteCandidate(id);
       if (r.error) { alert("Error: " + r.error); return; }
       load(page, search, filters);
+      onDataChange?.();
     } catch (e) { alert("Delete failed: " + e.message); }
   };
 
@@ -100,6 +101,7 @@ export default function Candidates({ masters, user }) {
       const r = modal.type === "add" ? await api.createCandidate(form) : await api.updateCandidate(modal.data.id, form);
       if (r.error) { alert("Error: " + r.error); setSaving(false); return; }
       setModal(null); load(page, search, filters);
+      onDataChange?.();
     } catch (e) { alert("Save failed: " + e.message); }
     setSaving(false);
   };
