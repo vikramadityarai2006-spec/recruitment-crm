@@ -1,4 +1,3 @@
-cat > /home/claude/Candidates.jsx << 'ENDOFFILE'
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../api";
 import { fmt, fmtD } from "../utils/constants";
@@ -12,38 +11,9 @@ const fmtMonth = (d) => {
   } catch { return d; }
 };
 
-// All months for Offer Month filter
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const YEARS = ["2022","2023","2024","2025","2026"];
 const OFFER_MONTH_OPTS = YEARS.flatMap(y => MONTHS.map(m => `${m} ${y}`)).reverse();
-
-function ViewCandidate({ c }) {
-  if (!c) return null;
-  const R = (l, v) => (
-    <div style={{ display: "flex", borderBottom: "1px solid #f8fafc", padding: "9px 0" }}>
-      <div style={{ width: 170, fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: .4, flexShrink: 0 }}>{l}</div>
-      <div style={{ fontSize: 13, color: "#0f172a", fontWeight: 500 }}>{v || "—"}</div>
-    </div>
-  );
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18, paddingBottom: 18, borderBottom: "1px solid #f1f5f9" }}>
-        <div style={{ width: 50, height: 50, borderRadius: 12, background: "linear-gradient(135deg,#2563eb22,#7c3aed22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, color: "#2563eb", flexShrink: 0 }}>
-          {c.candidateName?.[0]?.toUpperCase()}
-        </div>
-        <div>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{c.candidateName}</h3>
-          <p style={{ margin: "2px 0 0", color: "#64748b", fontSize: 12 }}>{c.designation} · {c.clientName}</p>
-          <div style={{ display: "flex", gap: 5, marginTop: 5 }}><Badge status={c.joiningStatus} /><Badge code={c.statusCode} /></div>
-        </div>
-      </div>
-      {R("Client", c.clientName)}{R("Designation", c.designation)}{R("Location", c.location)}
-      {R("Phone", c.phone)}{R("Offer Month", fmtMonth(c.offerMonth))}{R("Proposed DOJ", fmtD(c.proposedDOJ))}
-      {R("Actual DOJ", fmtD(c.actualDOJ))}{R("Resignation", c.resignationAcceptance)}{R("Owner", c.ownerName)}
-      {R("CTC Per Month", c.ctcPerMonth ? `₹${fmt(c.ctcPerMonth)}` : "—")}{R("Notes", c.notes)}
-    </div>
-  );
-}
 
 const EMPTY_FILTERS = {
   client: "", position: "", location: "", offerMonth: "",
@@ -75,6 +45,7 @@ export default function Candidates({ masters, user, onDataChange }) {
   const searchRef = useRef();
   const PER = 20;
 
+  // The Load function perfectly matches the new backend query parameters
   const load = useCallback(async (p = 1, s = "", f = {}) => {
     setLoading(true);
     const params = { page: p, limit: PER, sortBy: "id", sortDir: "desc" };
@@ -89,6 +60,7 @@ export default function Candidates({ masters, user, onDataChange }) {
     if (f.propDOJ)    params.propDOJ = f.propDOJ;
     if (f.actualDOJ)  params.actualDOJ = f.actualDOJ;
     if (f.resign)     params.resign = f.resign;
+    
     try {
       const res = await api.getCandidates(params);
       setResult(res || { candidates: [], total: 0, pages: 1 });
@@ -136,7 +108,7 @@ export default function Candidates({ masters, user, onDataChange }) {
   const exportCSV = () => {
     const cols = ["SR.NO","Client","Designation","Location","Candidate","Phone","Offer Month","Proposed DOJ","Actual DOJ","Resignation","Owner","Status","CTC","Code","Notes"];
     const rows = (result.candidates || []).map((c, i) => [(result.total - ((page-1)*PER) - i), c.clientName, c.designation, c.location, c.candidateName, c.phone, fmtMonth(c.offerMonth), c.proposedDOJ, c.actualDOJ, c.resignationAcceptance, c.ownerName, c.joiningStatus, c.ctcPerMonth, c.statusCode, c.notes]);
-    const csv = [cols, ...rows].map(r => r.map(v => `"${v || ""}"`).join(",")).join("\n");
+    const csv = [cols, ...rows].map(r => r.map(v => `"${(v || "").toString().replace(/"/g, '""')}"`).join(",")).join("\n");
     const a = document.createElement("a"); a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv); a.download = "candidates.csv"; a.click();
   };
 
@@ -160,7 +132,6 @@ export default function Candidates({ masters, user, onDataChange }) {
     { l: "CTC", w: 78 }, { l: "CODE", w: 58 }, { l: "", w: 72 },
   ];
 
-  // Build options from masters for each filter
   const getOpts = (key) => {
     if (key === "client")     return masters.clients || [];
     if (key === "owner")      return masters.owners || [];
@@ -177,7 +148,6 @@ export default function Candidates({ masters, user, onDataChange }) {
 
   return (
     <div>
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>Candidates</h2>
@@ -196,7 +166,6 @@ export default function Candidates({ masters, user, onDataChange }) {
         </div>
       </div>
 
-      {/* Search & Filter Toggle */}
       <div style={{ background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 12, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9" }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 180, display: "flex", alignItems: "center", gap: 7, background: "#f8fafc", borderRadius: 7, padding: "6px 10px", border: "1.5px solid #e2e8f0" }}>
@@ -207,30 +176,20 @@ export default function Candidates({ masters, user, onDataChange }) {
           <button
             onClick={() => setShowF(f => !f)}
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", background: showF ? "linear-gradient(135deg,#2563eb,#7c3aed)" : activeF > 0 ? "#eff6ff" : "#f8fafc", border: `1.5px solid ${showF ? "transparent" : activeF > 0 ? "#bfdbfe" : "#e2e8f0"}`, borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 700, color: showF ? "white" : activeF > 0 ? "#1d4ed8" : "#374151", transition: "all .15s" }}>
-            <Icon n="filter" s={12} />
-            Filters
-            {activeF > 0 && (
-              <span style={{ background: showF ? "rgba(255,255,255,0.3)" : "#2563eb", color: "white", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 800 }}>{activeF}</span>
-            )}
+            <Icon n="filter" s={12} /> Filters
+            {activeF > 0 && <span style={{ background: showF ? "rgba(255,255,255,0.3)" : "#2563eb", color: "white", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 800 }}>{activeF}</span>}
           </button>
         </div>
 
-        {/* Filter Panel */}
         {showF && (
           <div style={{ marginTop: 12, borderTop: "1px solid #f1f5f9", paddingTop: 14 }}>
-            {/* Panel header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.6 }}>
-                🎯 Filter by
-              </span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.6 }}>🎯 Filter by</span>
               {activeF > 0 && (
-                <button onClick={clearFilters} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, color: "#dc2626", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  ✕ Clear all filters
-                </button>
+                <button onClick={clearFilters} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, color: "#dc2626", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✕ Clear all filters</button>
               )}
             </div>
 
-            {/* Filter grid */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
               {FILTER_CONFIG.map(({ label, key, type, icon, opts }) => {
                 const val = filters[key];
@@ -238,76 +197,25 @@ export default function Candidates({ masters, user, onDataChange }) {
                 const selectOpts = opts || getOpts(key);
                 return (
                   <div key={key} style={{ position: "relative" }}>
-                    <label style={{
-                      fontSize: 10, fontWeight: 700, color: isActive ? "#2563eb" : "#64748b",
-                      display: "flex", alignItems: "center", gap: 4,
-                      marginBottom: 4, textTransform: "uppercase", letterSpacing: .5
-                    }}>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: isActive ? "#2563eb" : "#64748b", display: "flex", alignItems: "center", gap: 4, marginBottom: 4, textTransform: "uppercase", letterSpacing: .5 }}>
                       <span>{icon}</span> {label}
                       {isActive && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#2563eb", display: "inline-block", marginLeft: 2 }} />}
                     </label>
 
                     {type === "select" ? (
-                      <select
-                        value={val}
-                        onChange={e => setFilter(key, e.target.value)}
-                        style={{
-                          width: "100%", padding: "7px 28px 7px 9px", borderRadius: 7,
-                          border: `1.5px solid ${isActive ? "#93c5fd" : "#e2e8f0"}`,
-                          fontSize: 12, background: isActive ? "#eff6ff" : "white",
-                          color: isActive ? "#1d4ed8" : "#374151",
-                          outline: "none", cursor: "pointer", fontWeight: isActive ? 700 : 400,
-                          appearance: "none", WebkitAppearance: "none",
-                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E")`,
-                          backgroundRepeat: "no-repeat", backgroundPosition: "right 9px center",
-                          transition: "border-color .15s, background .15s"
-                        }}>
+                      <select value={val} onChange={e => setFilter(key, e.target.value)}
+                        style={{ width: "100%", padding: "7px 28px 7px 9px", borderRadius: 7, border: `1.5px solid ${isActive ? "#93c5fd" : "#e2e8f0"}`, fontSize: 12, background: isActive ? "#eff6ff" : "white", color: isActive ? "#1d4ed8" : "#374151", outline: "none", cursor: "pointer", fontWeight: isActive ? 700 : 400, appearance: "none", WebkitAppearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 9px center" }}>
                         <option value="">All</option>
                         {selectOpts.map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
                     ) : type === "date" ? (
-                      <input
-                        type="date"
-                        value={val}
-                        onChange={e => setFilter(key, e.target.value)}
-                        style={{
-                          width: "100%", padding: "7px 9px", borderRadius: 7, boxSizing: "border-box",
-                          border: `1.5px solid ${isActive ? "#93c5fd" : "#e2e8f0"}`,
-                          fontSize: 11, background: isActive ? "#eff6ff" : "white",
-                          color: isActive ? "#1d4ed8" : "#374151",
-                          outline: "none", cursor: "pointer", fontWeight: isActive ? 700 : 400,
-                          transition: "border-color .15s, background .15s"
-                        }}
-                      />
+                      <input type="date" value={val} onChange={e => setFilter(key, e.target.value)}
+                        style={{ width: "100%", padding: "7px 9px", borderRadius: 7, boxSizing: "border-box", border: `1.5px solid ${isActive ? "#93c5fd" : "#e2e8f0"}`, fontSize: 11, background: isActive ? "#eff6ff" : "white", color: isActive ? "#1d4ed8" : "#374151", outline: "none", cursor: "pointer", fontWeight: isActive ? 700 : 400 }} />
                     ) : (
-                      <input
-                        type="text"
-                        value={val}
-                        onChange={e => setFilter(key, e.target.value)}
-                        placeholder={`Search ${label}…`}
-                        style={{
-                          width: "100%", padding: "7px 9px", borderRadius: 7, boxSizing: "border-box",
-                          border: `1.5px solid ${isActive ? "#93c5fd" : "#e2e8f0"}`,
-                          fontSize: 12, background: isActive ? "#eff6ff" : "white",
-                          color: isActive ? "#1d4ed8" : "#374151",
-                          outline: "none", fontWeight: isActive ? 700 : 400,
-                          transition: "border-color .15s, background .15s"
-                        }}
-                      />
+                      <input type="text" value={val} onChange={e => setFilter(key, e.target.value)} placeholder={`Search ${label}…`}
+                        style={{ width: "100%", padding: "7px 9px", borderRadius: 7, boxSizing: "border-box", border: `1.5px solid ${isActive ? "#93c5fd" : "#e2e8f0"}`, fontSize: 12, background: isActive ? "#eff6ff" : "white", color: isActive ? "#1d4ed8" : "#374151", outline: "none", fontWeight: isActive ? 700 : 400 }} />
                     )}
-
-                    {/* Clear individual filter */}
-                    {isActive && (
-                      <button
-                        onClick={() => setFilter(key, "")}
-                        title="Clear"
-                        style={{
-                          position: "absolute", right: type === "select" ? 22 : 7, bottom: 8,
-                          border: "none", background: "none", cursor: "pointer",
-                          color: "#93c5fd", fontSize: 13, lineHeight: 1, padding: 0,
-                          display: "flex", alignItems: "center"
-                        }}>×</button>
-                    )}
+                    {isActive && <button onClick={() => setFilter(key, "")} style={{ position: "absolute", right: type === "select" ? 22 : 7, bottom: 8, border: "none", background: "none", cursor: "pointer", color: "#93c5fd", fontSize: 13, lineHeight: 1, padding: 0, display: "flex", alignItems: "center" }}>×</button>}
                   </div>
                 );
               })}
@@ -316,7 +224,6 @@ export default function Candidates({ masters, user, onDataChange }) {
         )}
       </div>
 
-      {/* Active filter chips */}
       {activeF > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
           {Object.entries(filters).filter(([, v]) => v).map(([k, v]) => (
@@ -328,7 +235,6 @@ export default function Candidates({ masters, user, onDataChange }) {
         </div>
       )}
 
-      {/* Table */}
       <div style={{ background: "white", borderRadius: 10, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9", overflow: "auto" }}>
         {loading ? (
           <div style={{ padding: 50, textAlign: "center" }}><Spin /><div style={{ marginTop: 10, color: "#94a3b8", fontSize: 13 }}>Loading…</div></div>
@@ -336,23 +242,16 @@ export default function Candidates({ masters, user, onDataChange }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
             <thead>
               <tr style={{ background: "linear-gradient(to right,#f8fafc,#f1f5f9)", borderBottom: "2px solid #e2e8f0" }}>
-                {cols.map(({ l, w }) => (
-                  <th key={l} style={{ padding: "9px 8px", textAlign: "left", fontWeight: 700, color: "#475569", fontSize: 10, textTransform: "uppercase", letterSpacing: .5, minWidth: w, whiteSpace: "nowrap" }}>{l}</th>
-                ))}
+                {cols.map(({ l, w }) => <th key={l} style={{ padding: "9px 8px", textAlign: "left", fontWeight: 700, color: "#475569", fontSize: 10, textTransform: "uppercase", letterSpacing: .5, minWidth: w, whiteSpace: "nowrap" }}>{l}</th>)}
               </tr>
             </thead>
             <tbody>
-              {!(result.candidates || []).length && (
-                <tr><td colSpan={15} style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>No candidates found.</td></tr>
-              )}
+              {!(result.candidates || []).length && <tr><td colSpan={15} style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>No candidates found.</td></tr>}
               {(result.candidates || []).map((c, i) => {
                 const srNo = result.total - ((page - 1) * PER) - i;
                 const rc = resColor(c.resignationAcceptance);
                 return (
-                  <tr key={c.id}
-                    style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 ? "#fcfcfd" : "white", transition: "background .12s" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#f0f9ff"}
-                    onMouseLeave={e => e.currentTarget.style.background = i % 2 ? "#fcfcfd" : "white"}>
+                  <tr key={c.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 ? "#fcfcfd" : "white", transition: "background .12s" }} onMouseEnter={e => e.currentTarget.style.background = "#f0f9ff"} onMouseLeave={e => e.currentTarget.style.background = i % 2 ? "#fcfcfd" : "white"}>
                     <td style={{ padding: "8px 8px", color: "#94a3b8", fontWeight: 700, fontSize: 10 }}>{srNo}</td>
                     <td style={{ padding: "8px 8px", fontWeight: 700, color: "#1e293b", maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.clientName || "—"}</td>
                     <td style={{ padding: "8px 8px" }}>
@@ -364,28 +263,17 @@ export default function Candidates({ masters, user, onDataChange }) {
                     <td style={{ padding: "8px 8px", color: "#64748b", fontFamily: "monospace", fontSize: 10 }}>{c.phone || "—"}</td>
                     <td style={{ padding: "8px 8px", color: "#475569", whiteSpace: "nowrap", fontWeight: 600 }}>{fmtMonth(c.offerMonth)}</td>
                     <td style={{ padding: "8px 8px", color: "#64748b", whiteSpace: "nowrap" }}>{fmtD(c.proposedDOJ)}</td>
-                    <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>
-                      {c.actualDOJ
-                        ? <span style={{ fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "2px 7px", borderRadius: 6, fontSize: 10 }}>{fmtD(c.actualDOJ)}</span>
-                        : <span style={{ color: "#cbd5e1", fontSize: 10 }}>—</span>}
-                    </td>
-                    <td style={{ padding: "8px 8px" }}>
-                      <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: rc.bg, color: rc.color, whiteSpace: "nowrap" }}>
-                        {c.resignationAcceptance || "—"}
-                      </span>
-                    </td>
+                    <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>{c.actualDOJ ? <span style={{ fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "2px 7px", borderRadius: 6, fontSize: 10 }}>{fmtD(c.actualDOJ)}</span> : <span style={{ color: "#cbd5e1", fontSize: 10 }}>—</span>}</td>
+                    <td style={{ padding: "8px 8px" }}><span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: rc.bg, color: rc.color, whiteSpace: "nowrap" }}>{c.resignationAcceptance || "—"}</span></td>
                     <td style={{ padding: "8px 8px", color: "#475569", whiteSpace: "nowrap", fontSize: 11 }}>{c.ownerName || "—"}</td>
                     <td style={{ padding: "8px 8px" }}><Badge status={c.joiningStatus} /></td>
                     <td style={{ padding: "8px 8px", color: "#0f172a", fontWeight: 700, whiteSpace: "nowrap" }}>₹{fmt(c.ctcPerMonth)}</td>
                     <td style={{ padding: "8px 8px" }}><Badge code={c.statusCode} /></td>
                     <td style={{ padding: "8px 8px" }}>
                       <div style={{ display: "flex", gap: 3 }}>
-                        <button onClick={() => setModal({ type: "view", data: c })} title="View"
-                          style={{ padding: "4px 5px", background: "#f0f9ff", border: "none", borderRadius: 5, cursor: "pointer", color: "#2563eb", display: "flex" }}><Icon n="eye" s={11} /></button>
-                        {canEdit && <button onClick={() => setModal({ type: "edit", data: c })} title="Edit"
-                          style={{ padding: "4px 5px", background: "#f0fdf4", border: "none", borderRadius: 5, cursor: "pointer", color: "#16a34a", display: "flex" }}><Icon n="edit" s={11} /></button>}
-                        {canDel && <button onClick={() => handleDelete(c.id)} title="Delete"
-                          style={{ padding: "4px 5px", background: "#fef2f2", border: "none", borderRadius: 5, cursor: "pointer", color: "#dc2626", display: "flex" }}><Icon n="trash" s={11} /></button>}
+                        <button onClick={() => setModal({ type: "view", data: c })} title="View" style={{ padding: "4px 5px", background: "#f0f9ff", border: "none", borderRadius: 5, cursor: "pointer", color: "#2563eb", display: "flex" }}><Icon n="eye" s={11} /></button>
+                        {canEdit && <button onClick={() => setModal({ type: "edit", data: c })} title="Edit" style={{ padding: "4px 5px", background: "#f0fdf4", border: "none", borderRadius: 5, cursor: "pointer", color: "#16a34a", display: "flex" }}><Icon n="edit" s={11} /></button>}
+                        {canDel && <button onClick={() => handleDelete(c.id)} title="Delete" style={{ padding: "4px 5px", background: "#fef2f2", border: "none", borderRadius: 5, cursor: "pointer", color: "#dc2626", display: "flex" }}><Icon n="trash" s={11} /></button>}
                       </div>
                     </td>
                   </tr>
@@ -396,31 +284,16 @@ export default function Candidates({ masters, user, onDataChange }) {
         )}
       </div>
 
-      {/* Pagination */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, flexWrap: "wrap", gap: 8 }}>
         <span style={{ fontSize: 12, color: "#64748b" }}>Page {page} of {result.pages || 1} · {result.total || 0} total records</span>
         <div style={{ display: "flex", gap: 3 }}>
           {[["«", 1, page <= 1], ["‹ Prev", page - 1, page <= 1], null, ["Next ›", page + 1, page >= result.pages], ["»", result.pages, page >= result.pages]].map((btn, i) => {
             if (!btn) return <span key={i} style={{ padding: "5px 12px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", borderRadius: 6, fontSize: 12, fontWeight: 700 }}>{page}</span>;
             const [label, target, disabled] = btn;
-            return <button key={i} onClick={() => { setPage(target); load(target, search, filters); }} disabled={disabled}
-              style={{ padding: "5px 10px", border: "1.5px solid #e2e8f0", borderRadius: 6, background: "white", cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, opacity: disabled ? .4 : 1 }}>{label}</button>;
+            return <button key={i} onClick={() => { setPage(target); load(target, search, filters); }} disabled={disabled} style={{ padding: "5px 10px", border: "1.5px solid #e2e8f0", borderRadius: 6, background: "white", cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, opacity: disabled ? .4 : 1 }}>{label}</button>;
           })}
         </div>
       </div>
-
-      {/* Modals */}
-      <Modal open={modal?.type === "add"} onClose={() => setModal(null)} title="Add New Candidate" wide>
-        <CandidateForm masters={masters} onSave={handleSave} onCancel={() => setModal(null)} saving={saving} />
-      </Modal>
-      <Modal open={modal?.type === "edit"} onClose={() => setModal(null)} title="Edit Candidate" wide>
-        <CandidateForm initial={modal?.data} masters={masters} onSave={handleSave} onCancel={() => setModal(null)} saving={saving} />
-      </Modal>
-      <Modal open={modal?.type === "view"} onClose={() => setModal(null)} title="Candidate Profile">
-        <ViewCandidate c={modal?.data} />
-      </Modal>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
-ENDOFFILE
