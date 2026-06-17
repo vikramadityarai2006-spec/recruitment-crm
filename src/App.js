@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Candidates from "./pages/Candidates";
 import Masters from "./pages/Masters";
 import Audit from "./pages/Audit";
+import Companies from "./pages/Companies";
 
 export default function App() {
   const [user, setUser] = useState(() => {
@@ -39,6 +40,7 @@ export default function App() {
   const nav = [
     { k: "dashboard", l: "Dashboard", i: "dash" },
     { k: "candidates", l: "Candidates", i: "users" },
+    { k: "companies", l: "Companies", i: "chart" },
     ...(user.role === "admin" ? [
       { k: "masters", l: "Master Data", i: "cog" },
       { k: "audit", l: "Audit Log", i: "eye" },
@@ -101,6 +103,7 @@ export default function App() {
         <div style={{ padding: 22, flex: 1 }}>
           {page === "dashboard"  && <Dashboard />}
           {page === "candidates" && <Candidates masters={masters} user={user} />}
+          {page === "companies"  && <Companies user={user} />}
           {page === "masters"    && user.role === "admin" && <Masters masters={masters} reload={loadMasters} />}
           {page === "audit"      && user.role === "admin" && <Audit />}
         </div>
