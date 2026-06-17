@@ -1,4 +1,4 @@
-const BASE_URL = "https://crm-k6zdmbodd-vikramadityarai2006-9386s-projects.vercel.app/api";
+const BASE_URL = "https://crm-api-iota-two.vercel.app/api";
 const getToken = () => localStorage.getItem("crm_token");
 export const H = () => ({
   "Content-Type": "application/json",
