@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const BASE_URL = "https://crm-api-iota-two.vercel.app/api";
+const BASE_URL = "https://crm-api-pied.vercel.app/api";
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("admin@ampleleap.com");
