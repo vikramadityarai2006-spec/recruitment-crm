@@ -1,15 +1,29 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../api";
-import { Spin, Modal, Icon } from "../components/UI";
+import { fmtD, daysUntil } from "../utils/constants";
+import { Spin, Modal, Icon, ContactButtons } from "../components/UI";
+
+// ─── AGREEMENT STATUS BADGE ───────────────────────────────────────────────────
+function AgreementBadge({ endDate }) {
+  if (!endDate) return <span style={{color:"#94a3b8",fontSize:11,background:"#f8fafc",padding:"3px 8px",borderRadius:7,border:"1px solid #e2e8f0",fontWeight:600}}>No date set</span>;
+  const days = daysUntil(endDate);
+  let style;
+  if (days < 0) style = {bg:"#fee2e2",c:"#dc2626",label:`Expired ${Math.abs(days)}d ago`,icon:"⛔"};
+  else if (days <= 30) style = {bg:"#fef9c3",c:"#92400e",label:`${days}d left`,icon:"⏳"};
+  else style = {bg:"#dcfce7",c:"#16a34a",label:`${days}d left`,icon:"✅"};
+  return <span style={{background:style.bg,color:style.c,padding:"3px 8px",borderRadius:7,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{style.icon} {style.label}</span>;
+}
 
 // ─── COMPANY FORM ─────────────────────────────────────────────────────────────
 function CompanyForm({ initial, onSave, onCancel, saving }) {
-  const blank = { companyName:"",spoc:"",contactName:"",department:"HR",mobile:"",email:"",address:"",dsc:"NO",hardcopy:"NO",serviceFee:"",agreementUrl:"" };
+  const blank = { companyName:"",spoc:"",contactName:"",department:"HR",mobile:"",email:"",address:"",dsc:"NO",hardcopy:"NO",serviceFee:"",agreementUrl:"",agreementStartDate:"",agreementEndDate:"" };
   const [form, setForm] = useState(initial ? {
     companyName:initial.companyName||"", spoc:initial.spoc||"", contactName:initial.contactName||"",
     department:initial.department||"HR", mobile:initial.mobile||"", email:initial.email||"",
     address:initial.address||"", dsc:initial.dsc||"NO", hardcopy:initial.hardcopy||"NO",
-    serviceFee:initial.serviceFee||"", agreementUrl:initial.agreementUrl||""
+    serviceFee:initial.serviceFee||"", agreementUrl:initial.agreementUrl||"",
+    agreementStartDate: initial.agreementStartDate ? initial.agreementStartDate.split("T")[0] : "",
+    agreementEndDate: initial.agreementEndDate ? initial.agreementEndDate.split("T")[0] : "",
   } : blank);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
@@ -32,6 +46,9 @@ function CompanyForm({ initial, onSave, onCancel, saving }) {
     </div>
   );
 
+  // Live preview of agreement countdown while editing
+  const previewDays = form.agreementEndDate ? daysUntil(form.agreementEndDate) : null;
+
   return (
     <div>
       <div style={{background:"linear-gradient(135deg,#f0f9ff,#eff6ff)",borderRadius:12,padding:16,marginBottom:20,border:"1px solid #bfdbfe"}}>
@@ -50,6 +67,29 @@ function CompanyForm({ initial, onSave, onCancel, saving }) {
         {F("💰 Service Fee","serviceFee","text","e.g. 8.33% + GST")}
         {F("🔗 Agreement PDF URL","agreementUrl","url","https://drive.google.com/...")}
       </div>
+
+      {/* Agreement dates section */}
+      <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:12,padding:16,marginBottom:16}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:12,display:"flex",alignItems:"center",gap:6}}>📅 Agreement Validity Period</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
+          <div style={{marginBottom:0}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:"#92400e",marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>Start Date</label>
+            <input type="date" value={form.agreementStartDate||""} onChange={e=>set("agreementStartDate",e.target.value)}
+              style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #fde68a",fontSize:13,boxSizing:"border-box",outline:"none",background:"white"}}/>
+          </div>
+          <div style={{marginBottom:0}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:"#92400e",marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>End Date</label>
+            <input type="date" value={form.agreementEndDate||""} onChange={e=>set("agreementEndDate",e.target.value)}
+              style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #fde68a",fontSize:13,boxSizing:"border-box",outline:"none",background:"white"}}/>
+          </div>
+        </div>
+        {previewDays !== null && (
+          <div style={{marginTop:10,fontSize:12,fontWeight:600,color: previewDays<0 ? "#dc2626" : previewDays<=30 ? "#92400e" : "#16a34a"}}>
+            {previewDays < 0 ? `⛔ This agreement expired ${Math.abs(previewDays)} days ago` : previewDays <= 30 ? `⏳ Expires in ${previewDays} days — will trigger renewal alert` : `✅ Valid for ${previewDays} more days`}
+          </div>
+        )}
+      </div>
+
       <div style={{marginBottom:16}}>
         <label style={{display:"block",fontSize:11,fontWeight:700,color:"#64748b",marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>📍 Office Address</label>
         <textarea value={form.address||""} onChange={e=>set("address",e.target.value)} rows={3} placeholder="Full office address with pincode…"
@@ -102,6 +142,7 @@ function ViewCompany({ c }) {
             <p style={{margin:"4px 0 0",color:"#94a3b8",fontSize:12}}>{c.contactName} · {c.department}</p>
             {c.serviceFee && <div style={{marginTop:6,background:"rgba(34,197,94,.15)",border:"1px solid rgba(34,197,94,.3)",borderRadius:8,padding:"3px 10px",display:"inline-block",fontSize:11,color:"#22c55e",fontWeight:600}}>💰 {c.serviceFee}</div>}
           </div>
+          <ContactButtons phone={c.mobile} email={c.email} waMessage={`Hi ${c.contactName||""}, this is regarding ${c.companyName}.`} size="lg"/>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
@@ -109,6 +150,16 @@ function ViewCompany({ c }) {
         <StatusBadge v={c.hardcopy} label="Hardcopy"/>
         <StatusBadge v={c.agreementUrl?"YES":"NO"} label="Agreement"/>
       </div>
+      {(c.agreementStartDate || c.agreementEndDate) && (
+        <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontSize:12,color:"#92400e"}}>
+              <strong>Agreement Period:</strong> {fmtD(c.agreementStartDate)} → {fmtD(c.agreementEndDate)}
+            </div>
+            <AgreementBadge endDate={c.agreementEndDate}/>
+          </div>
+        </div>
+      )}
       {R("SPOC",c.spoc)}{R("Contact",c.contactName)}{R("Department",c.department)}
       {R("Mobile",c.mobile)}{R("Email",c.email)}{R("Service Fee",c.serviceFee)}
       {R("Address",c.address)}
@@ -124,6 +175,7 @@ export default function Companies({ user }) {
   const [filterCompany, setFilterCompany] = useState("");
   const [filterDsc, setFilterDsc] = useState("");
   const [filterHardcopy, setFilterHardcopy] = useState("");
+  const [filterAgreement, setFilterAgreement] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
@@ -173,8 +225,8 @@ export default function Companies({ user }) {
   };
 
   const exportCSV = () => {
-    const cols=["ID","Company","SPOC","Contact","Dept","Mobile","Email","Address","DSC","Hardcopy","Service Fee","Agreement"];
-    const rows=(result.companies||[]).map(c=>[c.id,c.companyName,c.spoc,c.contactName,c.department,c.mobile,c.email,c.address,c.dsc,c.hardcopy,c.serviceFee,c.agreementUrl]);
+    const cols=["ID","Company","SPOC","Contact","Dept","Mobile","Email","Address","DSC","Hardcopy","Service Fee","Agreement","Agreement Start","Agreement End"];
+    const rows=(result.companies||[]).map(c=>[c.id,c.companyName,c.spoc,c.contactName,c.department,c.mobile,c.email,c.address,c.dsc,c.hardcopy,c.serviceFee,c.agreementUrl,c.agreementStartDate,c.agreementEndDate]);
     const csv=[cols,...rows].map(r=>r.map(v=>`"${v||""}"`).join(",")).join("\n");
     const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="companies.csv";a.click();
   };
@@ -183,19 +235,28 @@ export default function Companies({ user }) {
   const canDel = user.role==="admin";
   const cos = result.companies||[];
 
-  // Client-side filter for DSC/Hardcopy
+  // Client-side filter for DSC/Hardcopy/Agreement status
   const filtered = cos.filter(c => {
     if (filterDsc && c.dsc!==filterDsc) return false;
     if (filterHardcopy && c.hardcopy!==filterHardcopy) return false;
+    if (filterAgreement) {
+      const days = c.agreementEndDate ? daysUntil(c.agreementEndDate) : null;
+      if (filterAgreement==="expiring" && !(days!==null && days>=0 && days<=30)) return false;
+      if (filterAgreement==="expired" && !(days!==null && days<0)) return false;
+      if (filterAgreement==="missing" && c.agreementEndDate) return false;
+    }
     return true;
   });
+
+  const expiringCount = cos.filter(c => { const d = c.agreementEndDate ? daysUntil(c.agreementEndDate) : null; return d!==null && d>=0 && d<=30; }).length;
+  const expiredCount = cos.filter(c => { const d = c.agreementEndDate ? daysUntil(c.agreementEndDate) : null; return d!==null && d<0; }).length;
 
   const stats = [
     {l:"Total Contacts",v:result.total,c:"#2563eb",bg:"#eff6ff",icon:"👥"},
     {l:"DSC Received",v:cos.filter(c=>c.dsc==="YES").length,c:"#22c55e",bg:"#f0fdf4",icon:"✅"},
     {l:"Hardcopy Done",v:cos.filter(c=>c.hardcopy==="YES").length,c:"#8b5cf6",bg:"#f5f3ff",icon:"📁"},
-    {l:"Agreements",v:cos.filter(c=>c.agreementUrl).length,c:"#f97316",bg:"#fff7ed",icon:"📄"},
-    {l:"Pending Agreement",v:cos.filter(c=>!c.agreementUrl).length,c:"#ef4444",bg:"#fef2f2",icon:"⚠️"},
+    {l:"Expiring ≤30d",v:expiringCount,c:"#d97706",bg:"#fffbeb",icon:"⏳"},
+    {l:"Expired",v:expiredCount,c:"#ef4444",bg:"#fef2f2",icon:"⛔"},
   ];
 
   const DSCBadge = ({v}) => {
@@ -273,7 +334,14 @@ export default function Companies({ user }) {
             <option value="YES">Hardcopy: Done</option>
             <option value="NO">Hardcopy: Pending</option>
           </select>
-          {(filterCompany||filterDsc||filterHardcopy) && <button onClick={()=>{setFilterCompany("");setFilterDsc("");setFilterHardcopy("");load(1,search,"");}}
+          <select value={filterAgreement} onChange={e=>setFilterAgreement(e.target.value)}
+            style={{padding:"10px 14px",borderRadius:10,border:`1.5px solid ${filterAgreement?"#2563eb":"#e2e8f0"}`,fontSize:12,background:filterAgreement?"#eff6ff":"white",outline:"none",color:filterAgreement?"#1d4ed8":"#374151",fontWeight:filterAgreement?600:500}}>
+            <option value="">📅 Agreement: All</option>
+            <option value="expiring">Expiring ≤30 days</option>
+            <option value="expired">Already expired</option>
+            <option value="missing">No date set</option>
+          </select>
+          {(filterCompany||filterDsc||filterHardcopy||filterAgreement) && <button onClick={()=>{setFilterCompany("");setFilterDsc("");setFilterHardcopy("");setFilterAgreement("");load(1,search,"");}}
             style={{padding:"10px 14px",borderRadius:10,border:"1.5px solid #fecaca",background:"#fef2f2",color:"#dc2626",fontSize:12,fontWeight:700,cursor:"pointer"}}>
             Clear ✕
           </button>}
@@ -300,7 +368,7 @@ export default function Companies({ user }) {
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
               <thead>
                 <tr style={{background:"linear-gradient(to right,#f8fafc,#f1f5f9)"}}>
-                  {[["Company",130],["SPOC",80],["Contact Person",140],["Dept",70],["Mobile",105],["Email",170],["DSC",65],["Hardcopy",85],["Agreement",95],["",90]].map(([l,w])=>(
+                  {[["Company",130],["SPOC",80],["Contact Person",140],["Dept",70],["Mobile",105],["Email",170],["DSC",65],["Hardcopy",85],["Agreement PDF",95],["Agreement Status",110],["Connect",90],["",90]].map(([l,w])=>(
                     <th key={l} style={{padding:"12px 12px",textAlign:"left",fontWeight:700,color:"#64748b",fontSize:10,textTransform:"uppercase",letterSpacing:.7,minWidth:w,whiteSpace:"nowrap",borderBottom:"2px solid #e2e8f0"}}>{l}</th>
                   ))}
                 </tr>
@@ -338,6 +406,12 @@ export default function Companies({ user }) {
                       {c.agreementUrl
                         ? <a href={c.agreementUrl} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",background:"#eff6ff",color:"#2563eb",borderRadius:8,fontSize:11,fontWeight:700,textDecoration:"none",border:"1px solid #bfdbfe"}}>📄 View</a>
                         : <span style={{color:"#94a3b8",fontSize:11,background:"#fef2f2",padding:"3px 8px",borderRadius:7,border:"1px solid #fecaca",fontWeight:600}}>⚠️ Missing</span>}
+                    </td>
+                    <td style={{padding:"12px 12px"}}>
+                      <AgreementBadge endDate={c.agreementEndDate}/>
+                    </td>
+                    <td style={{padding:"12px 12px"}}>
+                      <ContactButtons phone={c.mobile} email={c.email} waMessage={`Hi ${c.contactName||""}, this is regarding ${c.companyName}.`}/>
                     </td>
                     <td style={{padding:"12px 12px"}}>
                       <div style={{display:"flex",gap:4}}>

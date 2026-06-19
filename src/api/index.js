@@ -38,6 +38,9 @@ export const api = {
   createCompany: (d) => fetch(`${BASE_URL}/companies`, { method: "POST", headers: H(), body: JSON.stringify(d) }).then(r => r.json()),
   updateCompany: (id, d) => fetch(`${BASE_URL}/companies?id=${id}`, { method: "PUT", headers: H(), body: JSON.stringify(d) }).then(r => r.json()),
   deleteCompany: (id) => fetch(`${BASE_URL}/companies?id=${id}`, { method: "DELETE", headers: H() }).then(r => r.json()),
+
+  // Alerts (agreement renewals, DOJ reminders, pending resignations)
+  getAlerts: () => fetch(`${BASE_URL}/alerts`, { headers: H() }).then(r => r.json()),
 };
 
 export const BASE = BASE_URL;

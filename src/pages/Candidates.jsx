@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../api";
 import { fmt, fmtD } from "../utils/constants";
-import { Badge, Spin, Icon, Modal } from "../components/UI";
+import { Badge, Spin, Icon, Modal, ContactButtons } from "../components/UI";
 import CandidateForm from "../components/CandidateForm";
 
 // ─── VIEW CANDIDATE ───────────────────────────────────────────────────────────
@@ -32,6 +32,7 @@ function ViewCandidate({ c }) {
           <div style={{ fontSize:22, fontWeight:800, color:"#22c55e" }}>₹{fmt(c.ctcPerMonth)}</div>
           <div style={{ fontSize:10, color:"#64748b", marginTop:2 }}>PER MONTH</div>
         </div>}
+        <ContactButtons phone={c.phone} waMessage={`Hi ${c.candidateName}, this is regarding your application with ${c.clientName||"us"}.`} size="lg"/>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 24px" }}>
         {R("Client",c.clientName,true)}{R("Owner",c.ownerName)}
@@ -389,14 +390,14 @@ export default function Candidates({ masters, user }) {
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
               <thead>
                 <tr style={{background:"linear-gradient(to right,#f8fafc,#f1f5f9)"}}>
-                  {[["SR",44],["CLIENT",115],["CANDIDATE",145],["POSITION",115],["LOCATION",80],["PHONE",105],["OFFER MTH",95],["PROP DOJ",95],["ACTUAL DOJ",95],["RESIGN",85],["OWNER",95],["STATUS",90],["CTC / MO",88],["CODE",62],["",80]].map(([l,w])=>(
+                  {[["SR",44],["CLIENT",115],["CANDIDATE",145],["POSITION",115],["LOCATION",80],["PHONE",105],["OFFER MTH",95],["PROP DOJ",95],["ACTUAL DOJ",95],["RESIGN",85],["OWNER",95],["STATUS",90],["CTC / MO",88],["CODE",62],["CONNECT",90],["",80]].map(([l,w])=>(
                     <th key={l} style={{padding:"12px 12px",textAlign:"left",fontWeight:700,color:"#64748b",fontSize:10,textTransform:"uppercase",letterSpacing:.7,minWidth:w,whiteSpace:"nowrap",borderBottom:"2px solid #e2e8f0"}}>{l}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {!(result.candidates||[]).length && (
-                  <tr><td colSpan={15}>
+                  <tr><td colSpan={16}>
                     <div style={{padding:80,textAlign:"center"}}>
                       <div style={{width:64,height:64,borderRadius:18,background:"linear-gradient(135deg,#f1f5f9,#e2e8f0)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:28}}>🔍</div>
                       <div style={{fontSize:16,fontWeight:700,color:"#0f172a",marginBottom:6}}>No candidates found</div>
@@ -437,6 +438,9 @@ export default function Candidates({ masters, user }) {
                       {c.ctcPerMonth ? <span style={{fontWeight:700,color:"#0f172a",fontSize:12}}>₹{fmt(c.ctcPerMonth)}</span> : <span style={{color:"#94a3b8"}}>—</span>}
                     </td>
                     <td style={{padding:"11px 12px"}}><Badge code={c.statusCode}/></td>
+                    <td style={{padding:"11px 12px"}}>
+                      <ContactButtons phone={c.phone} waMessage={`Hi ${c.candidateName}, this is regarding your application with ${c.clientName||"us"}.`}/>
+                    </td>
                     <td style={{padding:"11px 12px"}}>
                       <div style={{display:"flex",gap:3}}>
                         <button onClick={()=>setModal({type:"view",data:c})} title="View Profile"

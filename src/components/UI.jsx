@@ -44,6 +44,14 @@ export const Icon = ({ n, s = 16 }) => {
     x: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
     filter: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>,
     refresh: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>,
+    whatsapp: <svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 6.32A8.86 8.86 0 0 0 12.05 4a8.94 8.94 0 0 0-7.74 13.4L3 21l3.71-1.27a8.9 8.9 0 0 0 4.34 1.1h0a8.94 8.94 0 0 0 8.94-8.94 8.86 8.86 0 0 0-2.39-5.57zM12.05 19.1a7.4 7.4 0 0 1-3.77-1.03l-.27-.16-2.8.92.93-2.73-.18-.28a7.43 7.43 0 1 1 13.8-3.93 7.45 7.45 0 0 1-7.71 7.21zm4.08-5.56c-.22-.11-1.32-.65-1.53-.73-.2-.08-.36-.11-.5.11-.15.22-.58.73-.71.88-.13.15-.26.16-.48.05a6.1 6.1 0 0 1-1.8-1.11 6.74 6.74 0 0 1-1.24-1.55c-.13-.22 0-.34.1-.45.1-.1.22-.26.33-.39a1.5 1.5 0 0 0 .22-.37.4.4 0 0 0 0-.39c-.06-.11-.5-1.21-.69-1.65-.18-.43-.37-.37-.5-.38h-.43a.83.83 0 0 0-.6.28 2.52 2.52 0 0 0-.79 1.87 4.36 4.36 0 0 0 .92 2.32 10 10 0 0 0 3.85 3.4 4.42 4.42 0 0 0 2.71.57 2.31 2.31 0 0 0 1.52-1.07 1.88 1.88 0 0 0 .13-1.07c-.06-.1-.2-.16-.41-.27z"/></svg>,
+    mail: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>,
+    phone: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" /></svg>,
+    bell: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>,
+    clock: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
+    alert: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>,
+    fileText: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
+    trendUp: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
   };
   return icons[n] || null;
 };
@@ -79,5 +87,39 @@ export const Donut = ({ data = [], size = 90 }) => {
       <text x={50} y={51} textAnchor="middle" dominantBaseline="middle" fontSize={13} fontWeight={700} fill="#1e293b">{total}</text>
       <text x={50} y={61} textAnchor="middle" dominantBaseline="middle" fontSize={7} fill="#94a3b8">TOTAL</text>
     </svg>
+  );
+};
+
+// Quick-connect buttons: WhatsApp + Email + Call. Stops propagation so they work inside table rows.
+export const ContactButtons = ({ phone, email, waMessage = "", size = "sm" }) => {
+  const dims = size === "sm" ? { btn: 24, icon: 12 } : { btn: 30, icon: 14 };
+  const stop = (e) => e.stopPropagation();
+  const cleanPhone = (p) => {
+    if (!p) return "";
+    const digits = String(p).replace(/\D/g, "");
+    return digits.length === 10 ? "91" + digits : digits;
+  };
+  const wa = phone ? `https://wa.me/${cleanPhone(phone)}${waMessage ? `?text=${encodeURIComponent(waMessage)}` : ""}` : null;
+  const mail = email ? `mailto:${email}` : null;
+  const tel = phone ? `tel:${phone}` : null;
+  const btnStyle = (bg, color) => ({
+    width: dims.btn, height: dims.btn, borderRadius: dims.btn / 2, background: bg, color, display: "flex",
+    alignItems: "center", justifyContent: "center", textDecoration: "none", border: "none", cursor: "pointer", flexShrink: 0, transition: "transform .15s",
+  });
+  return (
+    <div style={{ display: "flex", gap: 5 }} onClick={stop}>
+      {wa && <a href={wa} target="_blank" rel="noreferrer" title="WhatsApp" style={btnStyle("#dcfce7", "#16a34a")}
+        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
+        <Icon n="whatsapp" s={dims.icon} />
+      </a>}
+      {tel && <a href={tel} title="Call" style={btnStyle("#dbeafe", "#2563eb")}
+        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
+        <Icon n="phone" s={dims.icon} />
+      </a>}
+      {mail && <a href={mail} title="Email" style={btnStyle("#fef3c7", "#d97706")}
+        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
+        <Icon n="mail" s={dims.icon} />
+      </a>}
+    </div>
   );
 };

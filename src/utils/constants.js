@@ -20,3 +20,33 @@ export const fmtD = d => {
   try { return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }); }
   catch { return d; }
 };
+
+// Clean a phone number to digits only, prefix with 91 if it's a 10-digit Indian number
+export const cleanPhone = (phone) => {
+  if (!phone) return "";
+  const digits = String(phone).replace(/\D/g, "");
+  if (digits.length === 10) return "91" + digits;
+  return digits;
+};
+
+export const waLink = (phone, message = "") => {
+  const num = cleanPhone(phone);
+  if (!num) return null;
+  const text = message ? `?text=${encodeURIComponent(message)}` : "";
+  return `https://wa.me/${num}${text}`;
+};
+
+export const mailLink = (email, subject = "", body = "") => {
+  if (!email) return null;
+  const params = [];
+  if (subject) params.push(`subject=${encodeURIComponent(subject)}`);
+  if (body) params.push(`body=${encodeURIComponent(body)}`);
+  return `mailto:${email}${params.length ? "?" + params.join("&") : ""}`;
+};
+
+export const daysUntil = (date) => {
+  if (!date) return null;
+  const diff = new Date(date) - new Date();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
+
