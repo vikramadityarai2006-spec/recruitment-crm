@@ -299,18 +299,29 @@ export default function Masters({ masters, reload, currentUser }) {
     else { showMsg(`✅ ${name} is now ${role}`); loadUsers(); }
   };
 
+
+
+  const deleteUser = async (id, name) => {
+    const r = await api.deleteUser(id);
+    if (r.error) { showMsg(r.error, "error"); return; }
+    // Immediately remove from local state so UI updates instantly
+    setUsers(prev => prev.filter(u => u.id !== id));
+    showMsg(`🗑️ "${name}" permanently deleted from team`);
+  };
+
   const toggleUser = async (id, active, name) => {
     const action = active ? "Deactivate" : "Activate";
     if (!window.confirm(`${action} "${name}"?`)) return;
     const r = await api.updateUser(id, { active: !active });
-    if (r.error) showMsg(r.error, "error");
-    else { showMsg(`✅ "${name}" ${active ? "deactivated" : "activated"}!`); loadUsers(); }
-  };
-
-  const deleteUser = async (id, name) => {
-    const r = await api.deleteUser(id);
-    if (r.error) showMsg(r.error, "error");
-    else { showMsg(`🗑️ "${name}" deleted from team`); loadUsers(); }
+    if (r.error) { showMsg(r.error, "error"); return; }
+    // Immediately remove deactivated user from list (API now only returns active)
+    if (active) {
+      setUsers(prev => prev.filter(u => u.id !== id));
+      showMsg(`✅ "${name}" deactivated and removed from list`);
+    } else {
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, active: true } : u));
+      showMsg(`✅ "${name}" activated!`);
+    }
   };
 
   const resetPassword = async (id, password) => {
