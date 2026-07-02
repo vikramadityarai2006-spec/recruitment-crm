@@ -18,9 +18,9 @@ export default function Login({ onLogin }) {
       const r = await api.login(email.trim(), pass);
       if (r.token) {
         // Store token and session expiry time
-        localStorage.setItem("crm_token", r.token);
+        sessionStorage.setItem("crm_token", r.token);
         const expiresAt = Date.now() + (r.expiresIn || 28800) * 1000;
-        localStorage.setItem("crm_session_expires", expiresAt.toString());
+        sessionStorage.setItem("crm_session_expires", expiresAt.toString());
         onLogin(r.user);
       } else {
         setErr(r.error || "Invalid email or password. Please try again.");

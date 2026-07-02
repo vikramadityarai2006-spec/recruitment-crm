@@ -1,5 +1,5 @@
 const BASE_URL = "https://crm-api-pied.vercel.app/api";
-const getToken = () => localStorage.getItem("crm_token");
+const getToken = () => sessionStorage.getItem("crm_token");
 export const H = () => ({
   "Content-Type": "application/json",
   ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
@@ -8,8 +8,8 @@ export const H = () => ({
 // Handle response — auto-logout on 401
 const handle = async (res) => {
   if (res.status === 401) {
-    localStorage.removeItem("crm_token");
-    localStorage.removeItem("crm_session_expires");
+    sessionStorage.removeItem("crm_token");
+    sessionStorage.removeItem("crm_session_expires");
     window.dispatchEvent(new CustomEvent("crm_logout", { detail: "session_expired" }));
     return { error: "Session expired. Please login again." };
   }
