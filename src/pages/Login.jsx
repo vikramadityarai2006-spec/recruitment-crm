@@ -2,22 +2,15 @@ import { useState } from "react";
 import { api } from "../api";
 
 export default function Login({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [pass, setPass]   = useState("");
-  const [err, setErr]     = useState("");
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail]       = useState("");
+  const [pass, setPass]         = useState("");
+  const [err, setErr]           = useState("");
+  const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [focused, setFocused]   = useState("");
-
-  const NAVY        = "#0B1F3A";
-  const ORANGE      = "#F4621F";
-  const ORANGE_DARK = "#D4521A";
-  const CREAM       = "#FDF8F4";
+  const [remember, setRemember] = useState(false);
 
   const go = async e => {
     e.preventDefault();
-    if (!email.trim()) { setErr("Enter your email address"); return; }
-    if (!pass)         { setErr("Enter your password"); return; }
     setLoading(true); setErr("");
     try {
       const r = await api.login(email.trim(), pass);
@@ -27,7 +20,7 @@ export default function Login({ onLogin }) {
         sessionStorage.setItem("crm_session_expires", expiresAt.toString());
         onLogin(r.user);
       } else {
-        setErr(r.error || "Incorrect email or password.");
+        setErr(r.error || "Invalid credentials. Please verify your email and password.");
         setLoading(false);
       }
     } catch {
@@ -36,195 +29,223 @@ export default function Login({ onLogin }) {
     }
   };
 
-  const fill = (em, pw) => { setEmail(em); setPass(pw); setErr(""); };
+  const fillDemo = (role) => {
+    const demos = {
+      admin:     { email: "admin@ampleleap.com",     pass: "admin123" },
+      recruiter: { email: "recruiter@ampleleap.com", pass: "rec123"   },
+      viewer:    { email: "viewer@ampleleap.com",    pass: "view123"  },
+    };
+    setEmail(demos[role].email);
+    setPass(demos[role].pass);
+    setErr("");
+  };
 
   return (
-    <div style={{ minHeight:"100vh", display:"flex", fontFamily:"'Inter',system-ui,sans-serif", background:CREAM }}>
+    <>
+      {/* Tailwind via CDN — loaded once */}
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"/>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"/>
 
-      {/* ── LEFT BRAND PANEL ── */}
-      <div style={{ width:420, minHeight:"100vh", background:NAVY, display:"flex", flexDirection:"column", padding:"48px 52px", position:"relative", overflow:"hidden", flexShrink:0 }}>
+      <style>{`
+        .mat { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; display:inline-block; vertical-align:middle; }
+        .mat-fill { font-variation-settings: 'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        .fade-in { animation: fadeIn .6s ease-out forwards; }
+        .fade-in-2 { animation: fadeIn .6s ease-out .2s both; }
+        .fade-in-4 { animation: fadeIn .6s ease-out .4s both; }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        .spin { animation: spin .8s linear infinite; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', system-ui, sans-serif; }
 
-        {/* Giant ghost monogram */}
-        <div style={{ position:"absolute", right:-50, bottom:-30, fontSize:320, fontWeight:900, color:"rgba(244,98,31,.07)", lineHeight:1, userSelect:"none", pointerEvents:"none", fontFamily:"Georgia,serif" }}>A</div>
+        /* Field */
+        .field {
+          width: 100%; padding: 12px 16px 12px 44px;
+          background: #f8f9fa; border: 1px solid #c3c6d1;
+          border-radius: 12px; font-size: 16px; color: #191c1d;
+          outline: none; transition: all .2s; font-family: inherit;
+        }
+        .field:focus { border-color: #003163; box-shadow: 0 0 0 3px rgba(0,49,99,.12); background: #fff; }
+        .field::placeholder { color: #9ba0aa; }
 
-        {/* Dot grid decoration */}
-        <div style={{ position:"absolute", top:28, right:28, display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:7, opacity:.1 }}>
-          {Array.from({length:25}).map((_,i)=>(
-            <div key={i} style={{ width:3, height:3, borderRadius:"50%", background:"white" }}/>
-          ))}
-        </div>
+        /* Demo btn hover */
+        .demo-btn:hover { background: #e7e8e9 !important; }
+        .demo-btn:hover .demo-icon { transform: scale(1.1); }
+        .demo-icon { transition: transform .2s; }
 
-        {/* Orange top accent line */}
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:4, background:`linear-gradient(90deg,${ORANGE},#FF8C42)` }}/>
+        /* Submit hover */
+        .submit-btn:hover:not(:disabled) { background: #d35400 !important; }
+        .submit-btn:active:not(:disabled) { transform: scale(.98); }
+        .submit-btn:disabled { opacity: .6; cursor: not-allowed; }
+      `}</style>
 
-        {/* Logo */}
-        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:72, position:"relative" }}>
-          <div style={{ width:44, height:44, borderRadius:12, background:ORANGE, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 8px 24px rgba(244,98,31,.4)" }}>
-            <span style={{ color:"white", fontSize:22, fontWeight:900, fontFamily:"Georgia,serif" }}>A</span>
+      <div style={{ minHeight:"100vh", display:"flex", fontFamily:"'Inter',system-ui,sans-serif", background:"#f8f9fa", overflowX:"hidden" }}>
+
+        {/* ── LEFT BRAND PANEL ── */}
+        <section style={{ display:"none", width:"58.333%", background:"#003163", position:"relative", overflow:"hidden", padding:"64px", flexDirection:"column", justifyContent:"space-between", flexShrink:0 }} className="al-left">
+          {/* Background overlay */}
+          <div style={{ position:"absolute", inset:0, zIndex:0 }}>
+            <div style={{ position:"absolute", inset:0, backgroundImage:"url('https://lh3.googleusercontent.com/aida/AP1WRLv5Q_u2xfc5mQSjr_tDEkOJMCisBJXAS05abi5TmS9wSVMQbbfav-QNFJvsiu34gEfNso3k0JZ0-Wf2mZBdJvP3pwppEPp4JLsXbU_BoyxzCzX7lfn87ywWqxPui_4nmpX5CFVu_Gh2kKVdJ4pOWBXUt3vpNTQAWT_jvTjBNzYsvkB1poQkWi23bx5Fyvyon9s5rKBnH-_e2pGOh2WexYAjs2YoMLjynIuLRN12mgH3rmQHKFMPjH6NQQ')", backgroundSize:"cover", backgroundPosition:"center", opacity:.2, mixBlendMode:"overlay" }}/>
+            <div style={{ position:"absolute", inset:0, background:"linear-gradient(135deg, #003163 0%, transparent 50%, #001c3e 100%)", opacity:.9 }}/>
           </div>
-          <div>
-            <div style={{ color:"white", fontSize:17, fontWeight:700, letterSpacing:-.3 }}>Ample Leap</div>
-            <div style={{ color:"rgba(255,255,255,.4)", fontSize:10, letterSpacing:1.8, textTransform:"uppercase", marginTop:1 }}>HR Excellence</div>
-          </div>
-        </div>
 
-        {/* Hero copy */}
-        <div style={{ flex:1, position:"relative" }}>
-          <div style={{ color:"rgba(255,255,255,.45)", fontSize:11, fontWeight:600, letterSpacing:2.5, textTransform:"uppercase", marginBottom:14 }}>Recruitment CRM</div>
-          <h1 style={{ color:"white", fontSize:40, fontWeight:800, lineHeight:1.15, margin:"0 0 22px", letterSpacing:-.8 }}>
-            Grow and<br/>
-            <span style={{ color:ORANGE }}>Smile.</span>
-          </h1>
-          <p style={{ color:"rgba(255,255,255,.5)", fontSize:14, lineHeight:1.75, margin:0, maxWidth:290 }}>
-            One platform to manage candidates, client agreements, recruiter performance, and joining analytics — end to end.
-          </p>
-
-          {/* Divider */}
-          <div style={{ width:40, height:3, background:ORANGE, borderRadius:2, margin:"32px 0" }}/>
-
-          {/* Values */}
-          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {["Ethics","Excellence","Happiness","Commitment"].map(v=>(
-              <div key={v} style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:5, height:5, borderRadius:"50%", background:ORANGE, flexShrink:0 }}/>
-                <span style={{ color:"rgba(255,255,255,.45)", fontSize:12, fontWeight:500 }}>{v}</span>
+          {/* Top: logo + headline */}
+          <div style={{ position:"relative", zIndex:10 }} className="fade-in">
+            <img src="https://lh3.googleusercontent.com/aida/AP1WRLt22RVqyfgd_cv5WlOHA9yYsMY6Gn9T5z-gVRggZfSgT9Gep4ne0ZXHSunSpnoxJcX3wGIAdG5DaJKa8o4feuEdewE_9WjjKpHDFIVNK01qobqbaAJ2GEtq4oe7lLMfp_TD6HL8n8rT3qTmXLGWa_2A10loCw0vHBV1mgvlOqKd7ywGAAzsAsG6KGpQIijjMIK0wuvrTVUGf8NbZlP972nqrq31JQFjUouHsvYsTrz3NeCeQAvgt2GtMQ"
+              alt="Ample Leap Logo" style={{ height:64, marginBottom:48, display:"block" }}/>
+            <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+              <h1 style={{ fontSize:48, lineHeight:"56px", letterSpacing:"-.02em", fontWeight:700, color:"white" }}>
+                Quantum Growth <br/>
+                <span style={{ color:"#789ad3" }}>Simplified.</span>
+              </h1>
+              <p style={{ fontSize:18, lineHeight:"28px", color:"white", opacity:.8, maxWidth:480 }}>
+                Experience the future of recruitment management. Ethics, Excellence, Happiness, and Commitment—integrated into every workflow.
+              </p>
+              <div style={{ display:"flex", alignItems:"center", gap:8, color:"#e77e23", fontSize:24, fontWeight:600, fontStyle:"italic", marginTop:8 }}>
+                Grow and Smile.
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div style={{ borderTop:"1px solid rgba(255,255,255,.08)", paddingTop:28 }}>
-          <div style={{ display:"flex", gap:32 }}>
-            {[["70+","Clients"],["700+","Placements"],["22","Projects"]].map(([n,l])=>(
-              <div key={l}>
-                <div style={{ color:ORANGE, fontSize:20, fontWeight:800 }}>{n}</div>
-                <div style={{ color:"rgba(255,255,255,.4)", fontSize:10, marginTop:2, fontWeight:500, textTransform:"uppercase", letterSpacing:.8 }}>{l}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop:20, display:"flex", alignItems:"center", gap:6 }}>
-            <div style={{ width:6, height:6, borderRadius:"50%", background:"#22c55e", boxShadow:"0 0 6px #22c55e88" }}/>
-            <span style={{ color:"rgba(255,255,255,.3)", fontSize:10 }}>ampleleap.com · The Integrated HR Solution</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── RIGHT FORM PANEL ── */}
-      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"48px 40px" }}>
-        <div style={{ width:"100%", maxWidth:400 }}>
-
-          {/* Header */}
-          <div style={{ marginBottom:36 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-              <div style={{ width:3, height:24, background:ORANGE, borderRadius:2 }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:ORANGE, letterSpacing:2, textTransform:"uppercase" }}>Secure Login</span>
             </div>
-            <h2 style={{ fontSize:30, fontWeight:800, color:NAVY, margin:"0 0 6px", letterSpacing:-.6 }}>Welcome back</h2>
-            <p style={{ color:"#6B7280", fontSize:14, margin:0 }}>Sign in to your CRM dashboard</p>
           </div>
 
-          {/* Error banner */}
-          {err && (
-            <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderLeft:`3px solid #EF4444`, borderRadius:"0 10px 10px 0", padding:"11px 14px", marginBottom:20, display:"flex", gap:9, alignItems:"flex-start" }}>
-              <span style={{ fontSize:13, flexShrink:0, marginTop:1 }}>⚠</span>
-              <span style={{ fontSize:13, color:"#991B1B", fontWeight:500 }}>{err}</span>
-            </div>
-          )}
-
-          <form onSubmit={go}>
-            {/* Email field */}
-            <div style={{ marginBottom:18 }}>
-              <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#374151", marginBottom:7, letterSpacing:.6, textTransform:"uppercase" }}>Email Address</label>
-              <div style={{ position:"relative" }}>
-                <div style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:focused==="email"?ORANGE:"#9CA3AF", display:"flex", transition:"color .2s" }}>
-                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          {/* Middle: values grid */}
+          <div style={{ position:"relative", zIndex:10 }} className="fade-in-2">
+            <p style={{ fontSize:12, lineHeight:"16px", letterSpacing:".05em", fontWeight:500, color:"#789ad3", textTransform:"uppercase", marginBottom:20 }}>Core Values</p>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+              {[
+                { icon:"verified_user",      label:"Ethics",     color:"#42D9DA" },
+                { icon:"star",               label:"Excellence", color:"#e77e23" },
+                { icon:"sentiment_satisfied",label:"Happiness",  color:"#bff0a4" },
+                { icon:"handshake",          label:"Commitment", color:"#789ad3" },
+              ].map(v => (
+                <div key={v.label} style={{ display:"flex", alignItems:"center", gap:12, background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.1)", padding:16, borderRadius:12 }}>
+                  <span className="mat mat-fill" style={{ color:v.color, fontSize:22 }}>{v.icon}</span>
+                  <span style={{ color:"white", fontSize:14, fontWeight:600 }}>{v.label}</span>
                 </div>
-                <input type="email" value={email} autoComplete="email" required
-                  onChange={e=>{setEmail(e.target.value);setErr("");}}
-                  onFocus={()=>setFocused("email")} onBlur={()=>setFocused("")}
-                  placeholder="you@ampleleap.com"
-                  style={{ width:"100%", padding:"12px 14px 12px 38px", borderRadius:10, border:`1.5px solid ${focused==="email"?ORANGE:err&&!email?"#EF4444":"#E5E7EB"}`, fontSize:14, boxSizing:"border-box", outline:"none", background:"white", color:NAVY, transition:"all .2s", boxShadow:focused==="email"?`0 0 0 3px rgba(244,98,31,.1)`:"none" }}/>
-              </div>
+              ))}
             </div>
-
-            {/* Password field */}
-            <div style={{ marginBottom:28 }}>
-              <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#374151", marginBottom:7, letterSpacing:.6, textTransform:"uppercase" }}>Password</label>
-              <div style={{ position:"relative" }}>
-                <div style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:focused==="pass"?ORANGE:"#9CA3AF", display:"flex", transition:"color .2s" }}>
-                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                </div>
-                <input type={showPass?"text":"password"} value={pass} autoComplete="current-password" required
-                  onChange={e=>{setPass(e.target.value);setErr("");}}
-                  onFocus={()=>setFocused("pass")} onBlur={()=>setFocused("")}
-                  placeholder="Enter your password"
-                  style={{ width:"100%", padding:"12px 44px 12px 38px", borderRadius:10, border:`1.5px solid ${focused==="pass"?ORANGE:err&&!pass?"#EF4444":"#E5E7EB"}`, fontSize:14, boxSizing:"border-box", outline:"none", background:"white", color:NAVY, transition:"all .2s", boxShadow:focused==="pass"?`0 0 0 3px rgba(244,98,31,.1)`:"none" }}/>
-                <button type="button" onClick={()=>setShowPass(v=>!v)}
-                  style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#9CA3AF", display:"flex", padding:2 }}>
-                  {showPass
-                    ? <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    : <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit */}
-            <button type="submit" disabled={loading}
-              style={{ width:"100%", padding:"13px", borderRadius:10, background:loading?ORANGE_DARK:ORANGE, color:"white", border:"none", fontWeight:700, fontSize:15, cursor:loading?"not-allowed":"pointer", boxShadow:`0 4px 16px rgba(244,98,31,.35)`, transition:"all .2s", display:"flex", alignItems:"center", justifyContent:"center", gap:9, letterSpacing:.2 }}
-              onMouseEnter={e=>{ if(!loading) e.currentTarget.style.background=ORANGE_DARK; }}
-              onMouseLeave={e=>{ if(!loading) e.currentTarget.style.background=ORANGE; }}>
-              {loading
-                ? <><span style={{ width:15, height:15, border:"2px solid rgba(255,255,255,.3)", borderTop:"2px solid white", borderRadius:"50%", animation:"spin .8s linear infinite", display:"inline-block", flexShrink:0 }}/>Signing in…</>
-                : "Sign in →"}
-            </button>
-          </form>
-
-          {/* Session hint */}
-          <div style={{ display:"flex", alignItems:"center", gap:7, justifyContent:"center", marginTop:14 }}>
-            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span style={{ fontSize:11, color:"#9CA3AF" }}>Session clears on browser close · 8 hour timeout</span>
-          </div>
-
-          {/* Demo divider */}
-          <div style={{ display:"flex", alignItems:"center", gap:12, margin:"28px 0 18px" }}>
-            <div style={{ flex:1, height:1, background:"#E5E7EB" }}/>
-            <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:600, letterSpacing:1.2, textTransform:"uppercase" }}>Demo accounts</span>
-            <div style={{ flex:1, height:1, background:"#E5E7EB" }}/>
-          </div>
-
-          {/* Demo cards */}
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
-            {[
-              {role:"Admin",     icon:"🔑", em:"admin@ampleleap.com",     pw:"admin123", accent:"#F4621F", bg:"#FFF7F4"},
-              {role:"Recruiter", icon:"✏️", em:"recruiter@ampleleap.com", pw:"rec123",   accent:"#1D4ED8", bg:"#EFF6FF"},
-              {role:"Viewer",    icon:"👁️", em:"viewer@ampleleap.com",    pw:"view123",  accent:"#16A34A", bg:"#F0FDF4"},
-            ].map(d=>(
-              <button key={d.role} type="button" onClick={()=>fill(d.em,d.pw)}
-                style={{ padding:"11px 8px", background:d.bg, border:`1.5px solid ${d.accent}20`, borderRadius:10, cursor:"pointer", textAlign:"center", transition:"all .15s", fontFamily:"inherit" }}
-                onMouseEnter={e=>{ e.currentTarget.style.borderColor=d.accent; e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow=`0 4px 12px ${d.accent}22`; }}
-                onMouseLeave={e=>{ e.currentTarget.style.borderColor=`${d.accent}20`; e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow="none"; }}>
-                <div style={{ fontSize:18, marginBottom:4 }}>{d.icon}</div>
-                <div style={{ fontSize:11, fontWeight:700, color:d.accent }}>{d.role}</div>
-                <div style={{ fontSize:9, color:"#9CA3AF", marginTop:1, fontWeight:500 }}>click to fill</div>
-              </button>
-            ))}
           </div>
 
           {/* Footer */}
-          <div style={{ textAlign:"center", marginTop:32, fontSize:11, color:"#9CA3AF" }}>
-            © {new Date().getFullYear()} Ample Leap ·{" "}
-            <a href="https://ampleleap.com" target="_blank" rel="noreferrer" style={{ color:ORANGE, textDecoration:"none", fontWeight:500 }}>ampleleap.com</a>
+          <div style={{ position:"relative", zIndex:10, paddingTop:32, borderTop:"1px solid rgba(255,255,255,.1)" }} className="fade-in-4">
+            <p style={{ fontSize:12, color:"white", opacity:.4 }}>© {new Date().getFullYear()} Ample Leap. The Integrated HR Solution. All rights reserved.</p>
           </div>
-        </div>
+        </section>
+
+        {/* ── RIGHT FORM PANEL ── */}
+        <main style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"32px 24px", background:"#ffffff" }}>
+          <div style={{ width:"100%", maxWidth:448 }} className="fade-in">
+
+            {/* Mobile logo */}
+            <div style={{ display:"block", marginBottom:32 }} className="al-mobile-logo">
+              <img src="https://lh3.googleusercontent.com/aida/AP1WRLt22RVqyfgd_cv5WlOHA9yYsMY6Gn9T5z-gVRggZfSgT9Gep4ne0ZXHSunSpnoxJcX3wGIAdG5DaJKa8o4feuEdewE_9WjjKpHDFIVNK01qobqbaAJ2GEtq4oe7lLMfp_TD6HL8n8rT3qTmXLGWa_2A10loCw0vHBV1mgvlOqKd7ywGAAzsAsG6KGpQIijjMIK0wuvrTVUGf8NbZlP972nqrq31JQFjUouHsvYsTrz3NeCeQAvgt2GtMQ"
+                alt="Ample Leap" style={{ height:40 }}/>
+            </div>
+
+            <div style={{ marginBottom:48 }}>
+              <h2 style={{ fontSize:32, lineHeight:"40px", letterSpacing:"-.01em", fontWeight:700, color:"#003163", marginBottom:8 }}>Welcome back</h2>
+              <p style={{ fontSize:16, color:"#43474f" }}>Secure CRM Login Portal</p>
+            </div>
+
+            {/* Error */}
+            {err && (
+              <div style={{ display:"flex", alignItems:"flex-start", gap:12, padding:16, background:"#ffdad6", borderRadius:12, marginBottom:24 }}>
+                <span className="mat" style={{ color:"#93000a", fontSize:20, flexShrink:0 }}>error</span>
+                <span style={{ fontSize:12, color:"#93000a", fontWeight:500 }}>{err}</span>
+              </div>
+            )}
+
+            <form onSubmit={go} style={{ display:"flex", flexDirection:"column", gap:24 }}>
+              {/* Email */}
+              <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                <label style={{ fontSize:14, fontWeight:600, color:"#43474f", letterSpacing:".01em" }}>Email Address</label>
+                <div style={{ position:"relative" }}>
+                  <span className="mat" style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#737780", fontSize:20, pointerEvents:"none" }}>alternate_email</span>
+                  <input type="email" value={email} required placeholder="name@ampleleap.com"
+                    onChange={e=>{setEmail(e.target.value);setErr("");}}
+                    className="field" style={{ paddingLeft:44 }}/>
+                </div>
+              </div>
+
+              {/* Password */}
+              <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <label style={{ fontSize:14, fontWeight:600, color:"#43474f", letterSpacing:".01em" }}>Password</label>
+                  <a href="#" style={{ fontSize:12, color:"#003163", textDecoration:"none", fontWeight:500 }}
+                    onMouseEnter={e=>e.target.style.textDecoration="underline"}
+                    onMouseLeave={e=>e.target.style.textDecoration="none"}>Forgot password?</a>
+                </div>
+                <div style={{ position:"relative" }}>
+                  <span className="mat" style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#737780", fontSize:20, pointerEvents:"none" }}>lock</span>
+                  <input type={showPass?"text":"password"} value={pass} required placeholder="••••••••"
+                    onChange={e=>{setPass(e.target.value);setErr("");}}
+                    className="field" style={{ paddingLeft:44, paddingRight:48 }}/>
+                  <button type="button" onClick={()=>setShowPass(v=>!v)}
+                    style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#737780", display:"flex", alignItems:"center", padding:2 }}
+                    onMouseEnter={e=>e.currentTarget.style.color="#003163"}
+                    onMouseLeave={e=>e.currentTarget.style.color="#737780"}>
+                    <span className="mat" style={{ fontSize:20 }}>{showPass?"visibility_off":"visibility"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Remember */}
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <input type="checkbox" id="remember" checked={remember} onChange={e=>setRemember(e.target.checked)}
+                  style={{ width:16, height:16, cursor:"pointer", accentColor:"#003163" }}/>
+                <label htmlFor="remember" style={{ fontSize:12, color:"#43474f", cursor:"pointer", userSelect:"none" }}>Remember this device</label>
+              </div>
+
+              {/* Submit */}
+              <button type="submit" disabled={loading} className="submit-btn"
+                style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"16px 24px", background:"#E67E22", color:"white", border:"none", borderRadius:12, fontSize:14, fontWeight:600, letterSpacing:".01em", boxShadow:"0 4px 16px rgba(230,126,34,.35)", transition:"all .2s", cursor:"pointer", fontFamily:"inherit" }}>
+                {loading ? (
+                  <>
+                    <div style={{ width:18, height:18, border:"2px solid rgba(255,255,255,.3)", borderTop:"2px solid white", borderRadius:"50%" }} className="spin"/>
+                    Authenticating…
+                  </>
+                ) : (
+                  <>
+                    Sign in
+                    <span className="mat" style={{ fontSize:20 }}>arrow_forward</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Demo accounts */}
+            <div style={{ marginTop:48, paddingTop:32, borderTop:"1px solid #c3c6d1" }}>
+              <p style={{ fontSize:12, color:"#43474f", textTransform:"uppercase", letterSpacing:".05em", fontWeight:500, marginBottom:16 }}>Quick Access: Demo Accounts</p>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+                {[
+                  { role:"admin",     icon:"admin_panel_settings", label:"Admin"     },
+                  { role:"recruiter", icon:"work",                  label:"Recruiter" },
+                  { role:"viewer",    icon:"visibility",            label:"Viewer"    },
+                ].map(d=>(
+                  <button key={d.role} type="button" onClick={()=>fillDemo(d.role)} className="demo-btn"
+                    style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:12, background:"#edeeef", border:"1px solid #c3c6d1", borderRadius:12, cursor:"pointer", transition:"background .15s", fontFamily:"inherit" }}>
+                    <span className="mat demo-icon" style={{ color:"#003163", fontSize:24 }}>{d.icon}</span>
+                    <span style={{ fontSize:12, color:"#43474f", fontWeight:500 }}>{d.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <p style={{ marginTop:48, textAlign:"center", fontSize:12, color:"#737780" }}>
+              Need help? Contact{" "}
+              <a href="mailto:support@ampleleap.com" style={{ color:"#003163", fontWeight:500, textDecoration:"none" }}
+                onMouseEnter={e=>e.target.style.textDecoration="underline"}
+                onMouseLeave={e=>e.target.style.textDecoration="none"}>Support</a>
+            </p>
+          </div>
+        </main>
       </div>
 
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 768px) {
-          div[style*="width:420px"] { display: none !important; }
+        @media (min-width: 1024px) {
+          .al-left { display: flex !important; }
+          .al-mobile-logo { display: none !important; }
         }
       `}</style>
-    </div>
+    </>
   );
 }
