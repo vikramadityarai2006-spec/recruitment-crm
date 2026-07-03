@@ -28,19 +28,19 @@ function SessionExpiredModal({ onDismiss }) {
 
 export default function App() {
   const [user, setUser] = useState(() => {
-    const t = localStorage.getItem("crm_token");
+    const t = sessionStorage.getItem("crm_token");
     if (!t) return null;
     try {
       const p = JSON.parse(atob(t.split(".")[1]));
       // Check if token is already expired
       if (p.exp * 1000 < Date.now()) {
-        localStorage.removeItem("crm_token");
-        localStorage.removeItem("crm_session_expires");
+        sessionStorage.removeItem("crm_token");
+        sessionStorage.removeItem("crm_session_expires");
         return null;
       }
       return { id: p.id, name: p.name, email: p.email, role: p.role };
     } catch {
-      localStorage.removeItem("crm_token");
+      sessionStorage.removeItem("crm_token");
       return null;
     }
   });
@@ -65,7 +65,7 @@ export default function App() {
   // Auto-logout timer based on token expiry
   useEffect(() => {
     if (!user) return;
-    const expires = parseInt(localStorage.getItem("crm_session_expires") || "0");
+    const expires = parseInt(sessionStorage.getItem("crm_session_expires") || "0");
     if (!expires) return;
     const msLeft = expires - Date.now();
     if (msLeft <= 0) { logout(); return; }
@@ -85,8 +85,8 @@ export default function App() {
   if (!user && !sessionExpired) return <Login onLogin={u => { setUser(u); setSessionExpired(false); }} />;
 
   const logout = (reason) => {
-    localStorage.removeItem("crm_token");
-    localStorage.removeItem("crm_session_expires");
+    sessionStorage.removeItem("crm_token");
+    sessionStorage.removeItem("crm_session_expires");
     setUser(null);
     if (reason === "session_expired") setSessionExpired(true);
   };
@@ -108,7 +108,7 @@ export default function App() {
 
   // Session time remaining display
   const getSessionInfo = () => {
-    const expires = parseInt(localStorage.getItem("crm_session_expires") || "0");
+    const expires = parseInt(sessionStorage.getItem("crm_session_expires") || "0");
     if (!expires) return null;
     const msLeft = expires - Date.now();
     if (msLeft <= 0) return null;

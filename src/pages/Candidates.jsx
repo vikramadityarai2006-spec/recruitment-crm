@@ -207,6 +207,7 @@ const EMPTY_FILTERS = {clients:[],owners:[],resignations:[],statuses:[],codes:[]
 export default function Candidates({ masters, user }) {
   const [result, setResult] = useState({candidates:[],total:0,pages:1});
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -238,19 +239,29 @@ export default function Candidates({ masters, user }) {
     setLoading(false);
   }, []);
 
+  // Debounce the raw search input into debouncedSearch, and reset to page 1.
+  // This is the ONLY place search causes a reload — it flows through the
+  // single effect below, so we never fire two requests for one keystroke.
   useEffect(() => {
-    const t = setTimeout(() => {load(1,search,filters);setPage(1);},400);
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { load(page,search,filters); }, [page,filters]);
+  // Single source of truth for fetching the list: reruns whenever page,
+  // filters, or the debounced search term changes. Handlers below only need
+  // to update state (setPage/setFilters/setDebouncedSearch) — they should
+  // NOT also call load() directly, or every interaction fires two requests.
+  useEffect(() => { load(page, debouncedSearch, filters); }, [page, filters, debouncedSearch, load]);
 
   const handleDelete = async id => {
     if (!window.confirm("Delete this candidate? This cannot be undone.")) return;
     try {
       const r = await api.deleteCandidate(id);
       if (r.error) { alert(r.error); return; }
-      load(page,search,filters);
+      load(page, debouncedSearch, filters);
     } catch(e) { alert(e.message); }
   };
 
@@ -259,7 +270,7 @@ export default function Candidates({ masters, user }) {
     try {
       const r = modal.type==="add" ? await api.createCandidate(form) : await api.updateCandidate(modal.data.id,form);
       if (r.error) { alert(r.error); setSaving(false); return; }
-      setModal(null); load(page,search,filters);
+      setModal(null); load(page, debouncedSearch, filters);
     } catch(e) { alert(e.message); }
     setSaving(false);
   };
@@ -272,7 +283,7 @@ export default function Candidates({ masters, user }) {
   };
 
   const activeFilters = [...(filters.clients||[]),...(filters.owners||[]),...(filters.resignations||[]),...(filters.statuses||[]),...(filters.codes||[]),filters.location,filters.designation,filters.offerFrom,filters.offerTo,filters.proposedFrom,filters.proposedTo,filters.actualFrom,filters.actualTo].filter(Boolean).length;
-  const clearAll = () => { setFilters(EMPTY_FILTERS); setPage(1); load(1,search,EMPTY_FILTERS); };
+  const clearAll = () => { setFilters(EMPTY_FILTERS); setPage(1); };
   const canEdit = user.role !== "viewer";
   const canDel = user.role === "admin";
 
@@ -285,7 +296,7 @@ export default function Candidates({ masters, user }) {
   return (
     <div style={{position:"relative",minHeight:"100vh"}}>
       {showFilters && <div onClick={()=>setShowFilters(false)} style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",zIndex:599,backdropFilter:"blur(2px)"}}/>}
-      {showFilters && <FilterPanel filters={filters} masters={masters} onApply={f=>{setFilters(f);setPage(1);load(1,search,f);}} onClose={()=>setShowFilters(false)}/>}
+      {showFilters && <FilterPanel filters={filters} masters={masters} onApply={f=>{setFilters(f);setPage(1);}} onClose={()=>setShowFilters(false)}/>}
 
       {/* ── PAGE HEADER ── */}
       <div style={{background:"white",borderRadius:16,padding:"20px 24px",marginBottom:18,boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9"}}>
@@ -313,7 +324,7 @@ export default function Candidates({ masters, user }) {
                 <Icon n="plus" s={14}/> Add Candidate
               </button>
             )}
-            <button onClick={()=>load(page,search,filters)} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",background:"white",border:"1.5px solid #e2e8f0",borderRadius:10,fontWeight:600,cursor:"pointer",fontSize:12,color:"#374151",transition:"all .2s"}}
+            <button onClick={()=>load(page,debouncedSearch,filters)} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",background:"white",border:"1.5px solid #e2e8f0",borderRadius:10,fontWeight:600,cursor:"pointer",fontSize:12,color:"#374151",transition:"all .2s"}}
               onMouseEnter={e=>e.currentTarget.style.borderColor="#2563eb"}
               onMouseLeave={e=>e.currentTarget.style.borderColor="#e2e8f0"}>
               <Icon n="refresh" s={13}/> Refresh
@@ -336,7 +347,7 @@ export default function Candidates({ masters, user }) {
             <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth={2.5}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, client, phone, position…"
               style={{border:"none",background:"none",outline:"none",fontSize:13,width:"100%",color:"#374151"}}/>
-            {search && <button onClick={()=>{setSearch("");load(1,"",filters);}} style={{border:"none",background:"none",cursor:"pointer",color:"#94a3b8",fontSize:16,display:"flex",padding:0}}>✕</button>}
+            {search && <button onClick={()=>{setSearch("");setDebouncedSearch("");setPage(1);}} style={{border:"none",background:"none",cursor:"pointer",color:"#94a3b8",fontSize:16,display:"flex",padding:0}}>✕</button>}
           </div>
 
           <button onClick={()=>setShowFilters(true)}
@@ -367,7 +378,7 @@ export default function Candidates({ masters, user }) {
             ].filter(Boolean).map((chip,i)=>(
               <span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px 4px 12px",background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:20,fontSize:11,color:"#1d4ed8",fontWeight:600}}>
                 {chip.l}
-                <button onClick={()=>{ const nf={...filters}; if(Array.isArray(nf[chip.k])) nf[chip.k]=nf[chip.k].filter(x=>x!==chip.v); else nf[chip.k]=""; setFilters(nf);setPage(1);load(1,search,nf); }} style={{border:"none",background:"#bfdbfe",cursor:"pointer",color:"#1d4ed8",borderRadius:"50%",width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:900,padding:0}}>✕</button>
+                <button onClick={()=>{ const nf={...filters}; if(Array.isArray(nf[chip.k])) nf[chip.k]=nf[chip.k].filter(x=>x!==chip.v); else nf[chip.k]=""; setFilters(nf);setPage(1); }} style={{border:"none",background:"#bfdbfe",cursor:"pointer",color:"#1d4ed8",borderRadius:"50%",width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:900,padding:0}}>✕</button>
               </span>
             ))}
             <button onClick={clearAll} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 12px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:20,fontSize:11,color:"#dc2626",fontWeight:700,cursor:"pointer"}}>
@@ -475,18 +486,18 @@ export default function Candidates({ masters, user }) {
               Showing <strong style={{color:"#0f172a"}}>{Math.min((page-1)*PER+1,result.total)}</strong>–<strong style={{color:"#0f172a"}}>{Math.min(page*PER,result.total)}</strong> of <strong style={{color:"#0f172a"}}>{result.total.toLocaleString()}</strong> candidates
             </div>
             <div style={{display:"flex",gap:4,alignItems:"center"}}>
-              <button onClick={()=>{setPage(1);load(1,search,filters);}} disabled={page<=1} style={{padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page<=1?"not-allowed":"pointer",fontSize:12,color:"#374151",opacity:page<=1?.4:1,fontWeight:600}}>«</button>
-              <button onClick={()=>{const p=page-1;setPage(p);load(p,search,filters);}} disabled={page<=1} style={{padding:"6px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page<=1?"not-allowed":"pointer",fontSize:12,color:"#374151",opacity:page<=1?.4:1,fontWeight:600}}>‹ Prev</button>
+              <button onClick={()=>setPage(1)} disabled={page<=1} style={{padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page<=1?"not-allowed":"pointer",fontSize:12,color:"#374151",opacity:page<=1?.4:1,fontWeight:600}}>«</button>
+              <button onClick={()=>setPage(p=>p-1)} disabled={page<=1} style={{padding:"6px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page<=1?"not-allowed":"pointer",fontSize:12,color:"#374151",opacity:page<=1?.4:1,fontWeight:600}}>‹ Prev</button>
               {Array.from({length:Math.min(5,result.pages||1)},(_,i)=>{
                 const p = Math.max(1,Math.min(page-2,(result.pages||1)-4))+i;
                 if(p<1||p>(result.pages||1)) return null;
-                return <button key={p} onClick={()=>{setPage(p);load(p,search,filters);}}
+                return <button key={p} onClick={()=>setPage(p)}
                   style={{padding:"6px 12px",border:`1.5px solid ${p===page?"#2563eb":"#e2e8f0"}`,borderRadius:8,background:p===page?"#2563eb":"white",color:p===page?"white":"#374151",cursor:"pointer",fontSize:12,fontWeight:p===page?700:500,minWidth:36,transition:"all .15s"}}>
                   {p}
                 </button>;
               })}
-              <button onClick={()=>{const p=page+1;setPage(p);load(p,search,filters);}} disabled={page>=(result.pages||1)} style={{padding:"6px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page>=(result.pages||1)?"not-allowed":"pointer",fontSize:12,color:"#374151",opacity:page>=(result.pages||1)?.4:1,fontWeight:600}}>Next ›</button>
-              <button onClick={()=>{setPage(result.pages||1);load(result.pages||1,search,filters);}} disabled={page>=(result.pages||1)} style={{padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page>=(result.pages||1)?"not-allowed":"pointer",fontSize:12,color:"#374151",opacity:page>=(result.pages||1)?.4:1,fontWeight:600}}>»</button>
+              <button onClick={()=>setPage(p=>p+1)} disabled={page>=(result.pages||1)} style={{padding:"6px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page>=(result.pages||1)?"not-allowed":"pointer",fontSize:12,color:"#374151",opacity:page>=(result.pages||1)?.4:1,fontWeight:600}}>Next ›</button>
+              <button onClick={()=>setPage(result.pages||1)} disabled={page>=(result.pages||1)} style={{padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page>=(result.pages||1)?"not-allowed":"pointer",fontSize:12,color:"#374151",opacity:page>=(result.pages||1)?.4:1,fontWeight:600}}>»</button>
             </div>
           </div>
           </>
