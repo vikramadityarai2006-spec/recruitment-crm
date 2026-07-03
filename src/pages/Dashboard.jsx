@@ -324,7 +324,7 @@ export default function Dashboard() {
             ))}
           </div>
           <div style={{ marginTop:20,paddingTop:16,borderTop:"1px solid #c3c6d1",display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:0 }}>
-            {[["Offer Rate",`${offerRate}%"],["Joining Rate",`${convRate}%"],["Resign Pending",resPending]].map(([l,v],i)=>(
+            {[["Offer Rate", offerRate+"%"],["Joining Rate", convRate+"%"],["Resign Pending", resPending]].map(([l,v],i)=>(
               <div key={l} style={{ textAlign:"center",padding:"0 12px",borderRight:i<2?"1px solid #c3c6d1":"none" }}>
                 <p style={{ fontSize:10,fontWeight:700,color:"#43474f",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4 }}>{l}</p>
                 <p style={{ fontSize:20,fontWeight:700,color:"#003163" }}>{v}</p>
