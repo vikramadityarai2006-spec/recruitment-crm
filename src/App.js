@@ -42,6 +42,7 @@ export default function App() {
   });
 
   const [page, setPage]               = useState("dashboard");
+  const [pendingFilter, setPendingFilter] = useState(null);
   const [masters, setMasters]         = useState({ clients:[], owners:[], joiningStatus:[], resignationStatus:[], locations:[], designations:[], statusCodes:[], _full:{} });
   const [sessionExpired, setSessionExpired] = useState(false);
   const [mobileOpen, setMobileOpen]   = useState(false);
@@ -101,6 +102,8 @@ export default function App() {
     const m = Math.floor((ms%3600000)/60000);
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
+
+  const navigate = (targetPage, filter=null) => { if (filter) setPendingFilter(filter); setPage(targetPage); };
 
   return (
     <div style={{ display:"flex", fontFamily:"'Inter',system-ui,sans-serif", minHeight:"100vh", background:"#F8F9FA" }}>
@@ -194,8 +197,8 @@ export default function App() {
 
         {/* Page */}
         <main style={{ padding:24, flex:1, overflow:"auto" }}>
-          {page==="dashboard"  && <Dashboard/>}
-          {page==="candidates" && <Candidates masters={masters} user={user}/>}
+          {page==="dashboard"  && <Dashboard onNavigate={navigate}/>}
+          {page==="candidates" && <Candidates masters={masters} user={user} initialFilter={pendingFilter} onConsumeInitialFilter={()=>setPendingFilter(null)}/>}
           {page==="companies"  && <Companies user={user}/>}
           {page==="masters"    && user.role==="admin" && <Masters masters={masters} reload={loadMasters} currentUser={user}/>}
           {page==="audit"      && user.role==="admin" && <Audit/>}

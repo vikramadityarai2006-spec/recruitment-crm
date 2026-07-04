@@ -3,7 +3,7 @@ import { useState } from "react";
 export default function CandidateForm({ initial, masters, onSave, onCancel, saving }) {
   const blank = {
     clientName:"", designation:"", location:"", candidateName:"",
-    actualDOJ:"", offerMonth:"", phone:"", resignationAcceptance:"Pending",
+    actualDOJ:"", offerMonth:"", phone:"", email:"", resignationAcceptance:"Pending",
     proposedDOJ:"", ownerName:"", joiningStatus:"Offered",
     ctcPerMonth:"", statusCode:"Orange", notes:""
   };
@@ -13,7 +13,7 @@ export default function CandidateForm({ initial, masters, onSave, onCancel, savi
     location: initial.location||"", candidateName: initial.candidateName||"",
     actualDOJ: initial.actualDOJ?initial.actualDOJ.split("T")[0]:"",
     offerMonth: initial.offerMonth?initial.offerMonth.split("T")[0]:"",
-    phone: initial.phone||"", resignationAcceptance: initial.resignationAcceptance||"Pending",
+    phone: initial.phone||"", email: initial.email||"", resignationAcceptance: initial.resignationAcceptance||"Pending",
     proposedDOJ: initial.proposedDOJ?initial.proposedDOJ.split("T")[0]:"",
     ownerName: initial.ownerName||"", joiningStatus: initial.joiningStatus||"Offered",
     ctcPerMonth: initial.ctcPerMonth||"", statusCode: initial.statusCode||"Orange",
@@ -59,6 +59,7 @@ export default function CandidateForm({ initial, masters, onSave, onCancel, savi
         {sel("Location / City", "location", masters.locations||[], true)}
         {inp("Candidate Name", "candidateName", "text", "Full name")}
         {inp("Phone Number", "phone", "tel", "10-digit mobile")}
+        {inp("Email Address", "email", "email", "name@example.com")}
         {inp("CTC Per Month (₹)", "ctcPerMonth", "number", "e.g. 85000")}
         {inp("Offer Month", "offerMonth", "date")}
         {inp("Proposed Date of Joining", "proposedDOJ", "date")}

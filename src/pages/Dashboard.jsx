@@ -71,7 +71,47 @@ function DonutChart({ data = [], total }) {
 }
 
 // ─── ALERTS DRAWER ────────────────────────────────────────────────────────────
-function AlertsDrawer({ alerts, onClose }) {
+function AlertsDrawer({ alerts, onClose, onUpdated }) {
+  const [busyId, setBusyId] = useState(null);
+  const [doneIds, setDoneIds] = useState(() => new Set());
+
+  const markJoined = async (c) => {
+    setBusyId(c.id);
+    try {
+      const r = await api.updateCandidate(c.id, { actualDOJ: new Date().toISOString().slice(0,10) });
+      if (r.error) { alert(r.error); } else { setDoneIds(s=>new Set(s).add(c.id)); onUpdated && onUpdated(); }
+    } catch(e) { alert(e.message); }
+    setBusyId(null);
+  };
+  const markResignationAccepted = async (c) => {
+    setBusyId(c.id);
+    try {
+      const r = await api.updateCandidate(c.id, { resignationAcceptance: "Accepted" });
+      if (r.error) { alert(r.error); } else { setDoneIds(s=>new Set(s).add(c.id)); onUpdated && onUpdated(); }
+    } catch(e) { alert(e.message); }
+    setBusyId(null);
+  };
+  const renewAgreement = async (a) => {
+    const input = window.prompt(`New agreement end date for ${a.companyName} (YYYY-MM-DD):`, "");
+    if (!input) return;
+    setBusyId(a.id);
+    try {
+      const r = await api.updateCompany(a.id, { agreementEndDate: input });
+      if (r.error) { alert(r.error); } else { setDoneIds(s=>new Set(s).add(a.id)); onUpdated && onUpdated(); }
+    } catch(e) { alert(e.message); }
+    setBusyId(null);
+  };
+
+  const UpdateKey = ({ label, onClick, id, color="#003163" }) => doneIds.has(id) ? (
+    <span style={{ fontSize:11, fontWeight:700, color:"#16a34a", display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
+      <M n="check_circle" size={14} fill={1}/> Updated
+    </span>
+  ) : (
+    <button onClick={onClick} disabled={busyId===id} style={{ display:"flex", alignItems:"center", gap:4, padding:"6px 10px", background:color, color:"white", border:"none", borderRadius:8, fontSize:11, fontWeight:700, cursor:busyId===id?"default":"pointer", opacity:busyId===id?.6:1, whiteSpace:"nowrap" }}>
+      <M n="update" size={13}/> {busyId===id?"...":label}
+    </button>
+  );
+
   const [activeTab, setActiveTab] = useState(() => {
     if (alerts?.expiringAgreements?.length) return "agreements";
     if (alerts?.upcomingDOJ?.length) return "doj";
@@ -133,7 +173,10 @@ function AlertsDrawer({ alerts, onClose }) {
                 <div style={{ fontWeight: 700, color: "#0b1c30", fontSize: 14 }}>{a.companyName}</div>
                 <div style={{ fontSize: 12, color: "#43474f", marginTop: 2 }}>{a.contactName||"—"} · {a.isExpired?`Expired ${Math.abs(a.daysLeft)}d ago`:`${a.daysLeft}d left`}</div>
               </div>
-              <ContactButtons phone={a.mobile} email={a.email} waMessage={`Hi ${a.contactName||""}, following up on agreement renewal for ${a.companyName}.`}/>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+                <ContactButtons phone={a.mobile} email={a.email} waMessage={`Hi ${a.contactName||""}, following up on agreement renewal for ${a.companyName}.`}/>
+                <UpdateKey label="Renew" id={a.id} onClick={()=>renewAgreement(a)} color="#E67E22"/>
+              </div>
             </div>
           ))}
           {activeTab === "doj" && (alerts?.upcomingDOJ||[]).map(d => (
@@ -145,7 +188,10 @@ function AlertsDrawer({ alerts, onClose }) {
                 <div style={{ fontWeight: 700, color: "#0b1c30", fontSize: 14 }}>{d.candidateName}</div>
                 <div style={{ fontSize: 12, color: "#43474f", marginTop: 2 }}>{d.clientName||"—"} · DOJ {fmtD(d.proposedDOJ)} · {d.daysLeft===0?"Today":d.daysLeft===1?"Tomorrow":`${d.daysLeft}d away`}</div>
               </div>
-              <ContactButtons phone={d.phone} waMessage={`Hi ${d.candidateName}, confirming your joining on ${fmtD(d.proposedDOJ)}.`}/>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+                <ContactButtons phone={d.phone} waMessage={`Hi ${d.candidateName}, confirming your joining on ${fmtD(d.proposedDOJ)}.`}/>
+                <UpdateKey label="Mark Joined" id={d.id} onClick={()=>markJoined(d)}/>
+              </div>
             </div>
           ))}
           {activeTab === "resignations" && (alerts?.pendingResignations||[]).map(r => (
@@ -157,7 +203,10 @@ function AlertsDrawer({ alerts, onClose }) {
                 <div style={{ fontWeight: 700, color: "#0b1c30", fontSize: 14 }}>{r.candidateName}</div>
                 <div style={{ fontSize: 12, color: "#43474f", marginTop: 2 }}>{r.clientName||"—"} · Owner: {r.ownerName||"—"}{r.proposedDOJ&&` · DOJ ${fmtD(r.proposedDOJ)}`}</div>
               </div>
-              <ContactButtons phone={r.phone} waMessage={`Hi ${r.candidateName}, following up on your resignation acceptance.`}/>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+                <ContactButtons phone={r.phone} waMessage={`Hi ${r.candidateName}, following up on your resignation acceptance.`}/>
+                <UpdateKey label="Mark Accepted" id={r.id} onClick={()=>markResignationAccepted(r)}/>
+              </div>
             </div>
           ))}
         </div>
@@ -174,14 +223,14 @@ function AlertsDrawer({ alerts, onClose }) {
 }
 
 // ─── KPI CARD ─────────────────────────────────────────────────────────────────
-function KPICard({ icon, label, value, bar, barColor, badge, badgeColor, delay = 0 }) {
+function KPICard({ icon, label, value, bar, barColor, badge, badgeColor, delay = 0, onClick }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => { const t = setTimeout(() => setVisible(true), delay); return () => clearTimeout(t); }, [delay]);
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       background: "white", padding: 16, borderRadius: 12, border: "1px solid #c3c6d1",
       opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(10px)",
-      transition: "all .6s ease-out", cursor: "default",
+      transition: "all .6s ease-out", cursor: onClick ? "pointer" : "default",
     }}
       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(0,0,0,.08)"; }}
       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}>
@@ -201,24 +250,31 @@ function KPICard({ icon, label, value, bar, barColor, badge, badgeColor, delay =
 }
 
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
-export default function Dashboard() {
+export default function Dashboard({ onNavigate }) {
   const [data, setData]       = useState(null);
   const [alerts, setAlerts]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
   const [showDrawer, setShowDrawer] = useState(false);
 
-  useEffect(() => {
+  const refresh = () => {
     Promise.all([api.getDashboard(), api.getAlerts()])
       .then(([dash, al]) => {
         setData(dash); setLoading(false);
-        if (al && !al.error) {
-          setAlerts(al);
-          const seen = sessionStorage.getItem("alerts_seen");
-          if (al.totalAlerts > 0 && !seen) { setShowDrawer(true); sessionStorage.setItem("alerts_seen","1"); }
-        }
+        if (al && !al.error) setAlerts(al);
       })
       .catch(e => { setError(e.message); setLoading(false); });
+  };
+
+  useEffect(() => {
+    api.getDashboard().then(dash => { setData(dash); setLoading(false); }).catch(e => { setError(e.message); setLoading(false); });
+    api.getAlerts().then(al => {
+      if (al && !al.error) {
+        setAlerts(al);
+        const seen = sessionStorage.getItem("alerts_seen");
+        if (al.totalAlerts > 0 && !seen) { setShowDrawer(true); sessionStorage.setItem("alerts_seen","1"); }
+      }
+    });
   }, []);
 
   if (loading) return (
@@ -232,13 +288,20 @@ export default function Dashboard() {
 
   const { total=0, offered=0, joined=0, resPending=0, thisMonth=0, nextMonth=0, funnel, statusGroups=[], clientGroups=[], months=[] } = data;
 
+  const goToday = () => { const d=new Date(); return d.toISOString().slice(0,10); };
+  const monthRange = (offset=0) => {
+    const now=new Date(); const s=new Date(now.getFullYear(),now.getMonth()+offset,1); const e=new Date(now.getFullYear(),now.getMonth()+offset+1,0);
+    return { from:s.toISOString().slice(0,10), to:e.toISOString().slice(0,10) };
+  };
+  const nav = (page, filter) => onNavigate && onNavigate(page, filter);
+
   const kpiCards = [
-    { icon:"person_search", label:"Total Candidates", value:total,      bar:75, barColor:"#003163", badge:"+12%",        badgeColor:"#22C55E" },
-    { icon:"assignment_turned_in",label:"Offered",    value:offered,    bar:40, barColor:"#E67E22", badge:"+5%",         badgeColor:"#22C55E" },
-    { icon:"verified",      label:"Joined",           value:joined,     bar:65, barColor:"#22C55E", badge:"+8%",         badgeColor:"#22C55E" },
-    { icon:"contract",      label:"Agreements",       value:0,          bar:30, barColor:"#ba1a1a", badge:"Check now",   badgeColor:"#ba1a1a" },
-    { icon:"calendar_today",label:"Joining This Month",value:thisMonth,  bar:55, barColor:"#003163", badge:"This month",  badgeColor:"#43474f" },
-    { icon:"person_off",    label:"Resign Pending",   value:resPending,  bar:15, barColor:"#737780", badge:resPending>0?"Action needed":"Clear", badgeColor:resPending>0?"#F97316":"#22C55E" },
+    { icon:"person_search", label:"Total Candidates", value:total,      bar:75, barColor:"#003163", badge:"+12%",        badgeColor:"#22C55E", onClick:()=>nav("candidates", {}) },
+    { icon:"assignment_turned_in",label:"Offered",    value:offered,    bar:40, barColor:"#E67E22", badge:"+5%",         badgeColor:"#22C55E", onClick:()=>nav("candidates", {statuses:["Offered"]}) },
+    { icon:"verified",      label:"Joined",           value:joined,     bar:65, barColor:"#22C55E", badge:"+8%",         badgeColor:"#22C55E", onClick:()=>nav("candidates", {statuses:["Joined"]}) },
+    { icon:"contract",      label:"Agreements",       value:0,          bar:30, barColor:"#ba1a1a", badge:"Check now",   badgeColor:"#ba1a1a", onClick:()=>nav("companies") },
+    { icon:"calendar_today",label:"Joining This Month",value:thisMonth,  bar:55, barColor:"#003163", badge:"This month",  badgeColor:"#43474f", onClick:()=>nav("candidates", {actualFrom:monthRange(0).from, actualTo:monthRange(0).to}) },
+    { icon:"person_off",    label:"Resign Pending",   value:resPending,  bar:15, barColor:"#737780", badge:resPending>0?"Action needed":"Clear", badgeColor:resPending>0?"#F97316":"#22C55E", onClick:()=>nav("candidates", {resignations:["Pending"]}) },
   ];
 
   const statusColors = { Joined:"#22C55E", Offered:"#E67E22", Backout:"#ba1a1a", Hold:"#F97316", "In Process":"#003163" };
@@ -253,9 +316,9 @@ export default function Dashboard() {
   const alertCount = (alerts?.expiringAgreements?.length||0)+(alerts?.upcomingDOJ?.length||0)+(alerts?.pendingResignations?.length||0);
 
   const funnelStages = [
-    { label:"Total Candidates Pool", value:total,  color:"linear-gradient(135deg,#003163,#001c3e)", textColor:"white" },
-    { label:"Offers Extended",       value:offered, color:"#E67E22",                                 textColor:"white" },
-    { label:"Successful Joinings",   value:joined,  color:"#22C55E",                                 textColor:"white" },
+    { label:"Total Candidates Pool", value:total,  color:"linear-gradient(135deg,#003163,#001c3e)", textColor:"white", onClick:()=>nav("candidates",{}) },
+    { label:"Offers Extended",       value:offered, color:"#E67E22",                                 textColor:"white", onClick:()=>nav("candidates",{statuses:["Offered"]}) },
+    { label:"Successful Joinings",   value:joined,  color:"#22C55E",                                 textColor:"white", onClick:()=>nav("candidates",{statuses:["Joined"]}) },
   ];
   const convRate = offered > 0 ? Math.round((joined/offered)*100) : 0;
   const offerRate = total > 0 ? Math.round((offered/total)*100) : 0;
@@ -309,7 +372,7 @@ export default function Dashboard() {
           <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
             {funnelStages.map((s,i) => (
               <div key={s.label}>
-                <div style={{ height:60,background:s.color,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",marginLeft:i*28 }}>
+                <div onClick={s.onClick} style={{ height:60,background:s.color,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",marginLeft:i*28,cursor:s.onClick?"pointer":"default" }}>
                   <span style={{ fontWeight:600,color:s.textColor,fontSize:14 }}>{s.label}</span>
                   <span style={{ fontSize:20,fontWeight:700,color:s.textColor }}>{(s.value||0).toLocaleString("en-IN")}</span>
                 </div>
@@ -341,7 +404,8 @@ export default function Dashboard() {
           </div>
           <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
             {donutData.slice(0,4).map(s=>(
-              <div key={s.label} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#eff4ff",borderRadius:8 }}>
+              <div key={s.label} onClick={()=>nav("candidates",{statuses:[s.label]})} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#eff4ff",borderRadius:8, cursor:"pointer", transition:"background .15s" }}
+                onMouseEnter={e=>e.currentTarget.style.background="#dce9ff"} onMouseLeave={e=>e.currentTarget.style.background="#eff4ff"}>
                 <div style={{ display:"flex",alignItems:"center",gap:8 }}>
                   <div style={{ width:10,height:10,borderRadius:"50%",background:s.color,flexShrink:0 }}/>
                   <span style={{ fontSize:13,fontWeight:600,color:"#0b1c30" }}>{s.label}</span>
@@ -368,7 +432,8 @@ export default function Dashboard() {
                   const count = c._count?._all||0;
                   const pct = Math.round((count/maxClient)*100);
                   return (
-                    <div key={c.clientName} style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                    <div key={c.clientName} onClick={()=>nav("candidates",{clients:[c.clientName]})} style={{ display:"flex",alignItems:"center",justifyContent:"space-between", cursor:"pointer", padding:6, margin:"-6px", borderRadius:10, transition:"background .15s" }}
+                      onMouseEnter={e=>e.currentTarget.style.background="#f8f9fa"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                       <div style={{ display:"flex",alignItems:"center",gap:12 }}>
                         <div style={{ width:38,height:38,borderRadius:9,background:"#dce9ff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
                           <M n="corporate_fare" size={18} style={{color:"#003163"}}/>
@@ -412,7 +477,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {showDrawer && alerts && <AlertsDrawer alerts={alerts} onClose={()=>setShowDrawer(false)}/>}
+      {showDrawer && alerts && <AlertsDrawer alerts={alerts} onClose={()=>setShowDrawer(false)} onUpdated={refresh}/>}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );

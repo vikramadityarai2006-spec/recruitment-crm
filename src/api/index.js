@@ -37,6 +37,9 @@ export const api = {
   addStatusCode: (d) => fetch(`${BASE_URL}/masters?type=status-codes`, { method: "POST", headers: H(), body: JSON.stringify(d) }).then(handle),
   deleteStatusCode: (code) => fetch(`${BASE_URL}/masters?type=status-codes`, { method: "DELETE", headers: H(), body: JSON.stringify({ code }) }).then(handle),
 
+  // Bulk messaging (Email / WhatsApp)
+  bulkMessage: (d) => fetch(`${BASE_URL}/bulk-message`, { method: "POST", headers: H(), body: JSON.stringify(d) }).then(handle),
+
   // Dashboard, Audit & Alerts
   getDashboard: () => fetch(`${BASE_URL}/dashboard`, { headers: H() }).then(handle),
   getAudit: () => fetch(`${BASE_URL}/audit`, { headers: H() }).then(handle),

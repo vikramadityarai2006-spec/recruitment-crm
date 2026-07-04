@@ -3,6 +3,7 @@ import { api } from "../api";
 import { fmt, fmtD } from "../utils/constants";
 import { Modal } from "../components/UI";
 import CandidateForm from "../components/CandidateForm";
+import BulkMessageModal from "../components/BulkMessageModal";
 
 // ─── MATERIAL ICON ────────────────────────────────────────────────────────────
 const M = ({ n, fill = 0, size = 18, style = {} }) => (
@@ -66,7 +67,7 @@ function ViewCandidate({ c }) {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 32px" }}>
         {R("Client",c.clientName,true)}{R("Owner",c.ownerName)}
         {R("Designation",c.designation)}{R("Location",c.location)}
-        {R("Phone",c.phone)}{R("Joining Status",c.joiningStatus)}
+        {R("Phone",c.phone)}{R("Email",c.email)}{R("Joining Status",c.joiningStatus)}
         {R("Offer Month",fmtD(c.offerMonth))}{R("Status Code",c.statusCode)}
         {R("Proposed DOJ",fmtD(c.proposedDOJ))}{R("Actual DOJ",fmtD(c.actualDOJ))}
         {R("Resignation",c.resignationAcceptance)}{R("CTC/Month",c.ctcPerMonth?`₹${fmt(c.ctcPerMonth)}`:"—")}
@@ -207,23 +208,41 @@ function FilterPanel({ filters, masters, onApply, onClose }) {
 }
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
-const PER = 20;
+const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const EMPTY = {clients:[],owners:[],resignations:[],statuses:[],codes:[],location:"",designation:"",offerFrom:"",offerTo:"",proposedFrom:"",proposedTo:"",actualFrom:"",actualTo:""};
+const PRESETS_KEY = "crm_filter_presets";
 
-export default function Candidates({ masters, user }) {
+export default function Candidates({ masters, user, initialFilter, onConsumeInitialFilter }) {
   const [result, setResult]         = useState({candidates:[],total:0,pages:1});
   const [search, setSearch]         = useState("");
   const [debSearch, setDebSearch]   = useState("");
   const [filters, setFilters]       = useState(EMPTY);
   const [page, setPage]             = useState(1);
+  const [PER, setPER]               = useState(25); // records per page — default 25
+  const [sortDir, setSortDir]       = useState("desc"); // newest to oldest by default
   const [loading, setLoading]       = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [modal, setModal]           = useState(null);
   const [saving, setSaving]         = useState(false);
+  const [selected, setSelected]     = useState(() => new Set());
+  const [showBulk, setShowBulk]     = useState(false);
+  const [presets, setPresets]       = useState(() => {
+    try { return JSON.parse(localStorage.getItem(PRESETS_KEY) || "[]"); } catch { return []; }
+  });
 
-  const load = useCallback(async (p=1,s="",f={}) => {
+  // Apply a filter handed to us from another page (e.g. clicking a Dashboard stat)
+  useEffect(() => {
+    if (initialFilter) {
+      setFilters(f => ({ ...EMPTY, ...initialFilter }));
+      setPage(1);
+      onConsumeInitialFilter && onConsumeInitialFilter();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFilter]);
+
+  const load = useCallback(async (p=1,s="",f={},per=25,dir="desc") => {
     setLoading(true);
-    const params = {page:p,limit:PER};
+    const params = {page:p,limit:per,sortDir:dir};
     if (s) params.search=s;
     if (f.clients?.length) params.client=f.clients.join(",");
     if (f.owners?.length) params.owner=f.owners.join(",");
@@ -244,11 +263,11 @@ export default function Candidates({ masters, user }) {
   },[]);
 
   useEffect(()=>{ const t=setTimeout(()=>{setDebSearch(search);setPage(1);},400); return()=>clearTimeout(t); },[search]);
-  useEffect(()=>{ load(page,debSearch,filters); },[page,filters,debSearch,load]);
+  useEffect(()=>{ load(page,debSearch,filters,PER,sortDir); setSelected(new Set()); },[page,filters,debSearch,PER,sortDir,load]);
 
   const handleDelete = async id => {
     if (!window.confirm("Delete this candidate? This cannot be undone.")) return;
-    try { const r=await api.deleteCandidate(id); if(r.error){alert(r.error);return;} load(page,debSearch,filters); }
+    try { const r=await api.deleteCandidate(id); if(r.error){alert(r.error);return;} load(page,debSearch,filters,PER,sortDir); }
     catch(e){alert(e.message);}
   };
 
@@ -257,7 +276,7 @@ export default function Candidates({ masters, user }) {
     try {
       const r = modal.type==="add" ? await api.createCandidate(form) : await api.updateCandidate(modal.data.id,form);
       if(r.error){alert(r.error);setSaving(false);return;}
-      setModal(null); load(page,debSearch,filters);
+      setModal(null); load(page,debSearch,filters,PER,sortDir);
     } catch(e){alert(e.message);}
     setSaving(false);
   };
@@ -294,6 +313,36 @@ export default function Candidates({ masters, user }) {
     setFilters(nf); setPage(1);
   };
 
+  // ── Selection (for bulk messaging) ──
+  const pageIds = (result.candidates||[]).map(c=>c.id);
+  const allOnPageSelected = pageIds.length>0 && pageIds.every(id=>selected.has(id));
+  const toggleOne = id => setSelected(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
+  const toggleAllOnPage = () => setSelected(s => {
+    const n = new Set(s);
+    if (allOnPageSelected) pageIds.forEach(id=>n.delete(id));
+    else pageIds.forEach(id=>n.add(id));
+    return n;
+  });
+  const selectedCandidates = (result.candidates||[]).filter(c=>selected.has(c.id));
+
+  // ── Advanced filter states (save / load / delete named filter presets) ──
+  const savePreset = () => {
+    const name = window.prompt("Name this filter set (e.g. 'Pending resignations - Infosys'):");
+    if (!name) return;
+    const next = [...presets.filter(p=>p.name!==name), { name, filters }];
+    setPresets(next);
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(next));
+  };
+  const loadPreset = name => {
+    const p = presets.find(x=>x.name===name);
+    if (p) { setFilters({...EMPTY,...p.filters}); setPage(1); }
+  };
+  const deletePreset = name => {
+    const next = presets.filter(p=>p.name!==name);
+    setPresets(next);
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(next));
+  };
+
   const ActionBtn = ({onClick,title,icon,color,bg}) => (
     <button onClick={onClick} title={title} style={{ padding:6, background:"white", border:"1px solid #c3c6d1", borderRadius:8, cursor:"pointer", color, display:"flex", transition:"all .15s" }}
       onMouseEnter={e=>{ e.currentTarget.style.background=bg; e.currentTarget.style.color="white"; e.currentTarget.style.borderColor=bg; }}
@@ -317,7 +366,12 @@ export default function Candidates({ masters, user }) {
           </p>
         </div>
         <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
-          <button onClick={()=>load(page,debSearch,filters)} style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", background:"white", border:"1px solid #c3c6d1", borderRadius:12, fontSize:13, fontWeight:600, color:"#003163", cursor:"pointer", transition:"all .2s" }}
+          {selected.size>0 && (
+            <button onClick={()=>setShowBulk(true)} style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", background:"#16a34a", color:"white", border:"none", borderRadius:12, fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 12px rgba(22,163,74,.3)" }}>
+              <M n="campaign" size={18}/> Message {selected.size} Selected
+            </button>
+          )}
+          <button onClick={()=>load(page,debSearch,filters,PER,sortDir)} style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", background:"white", border:"1px solid #c3c6d1", borderRadius:12, fontSize:13, fontWeight:600, color:"#003163", cursor:"pointer", transition:"all .2s" }}
             onMouseEnter={e=>e.currentTarget.style.background="#eff4ff"}
             onMouseLeave={e=>e.currentTarget.style.background="white"}>
             <M n="refresh" size={18}/> Refresh
@@ -350,7 +404,37 @@ export default function Candidates({ masters, user }) {
             <M n="filter_list" size={18}/> Filters
             {activeFilters>0 && <span style={{ background:"#E67E22", color:"white", fontSize:10, fontWeight:800, padding:"0 8px", borderRadius:99 }}>{activeFilters}</span>}
           </button>
+          {presets.length>0 && (
+            <select onChange={e=>{ if(e.target.value){loadPreset(e.target.value);e.target.value="";} }} defaultValue=""
+              title="Load a saved filter set" style={{ padding:"10px 12px", borderRadius:12, border:"1px solid #c3c6d1", fontSize:13, fontWeight:600, color:"#003163", background:"white", cursor:"pointer" }}>
+              <option value="">Saved Filters ({presets.length})</option>
+              {presets.map(p=><option key={p.name} value={p.name}>{p.name}</option>)}
+            </select>
+          )}
+          {activeFilters>0 && (
+            <button onClick={savePreset} title="Save current filters as a preset" style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 14px", background:"white", border:"1px solid #c3c6d1", borderRadius:12, cursor:"pointer", fontSize:13, fontWeight:600, color:"#003163" }}>
+              <M n="bookmark_add" size={16}/> Save
+            </button>
+          )}
+          <button onClick={()=>setSortDir(d=>d==="desc"?"asc":"desc")} title="Toggle sort order" style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 14px", background:"white", border:"1px solid #c3c6d1", borderRadius:12, cursor:"pointer", fontSize:13, fontWeight:600, color:"#003163" }}>
+            <M n={sortDir==="desc"?"arrow_downward":"arrow_upward"} size={16}/> {sortDir==="desc"?"Newest first":"Oldest first"}
+          </button>
+          <select value={PER} onChange={e=>{setPER(parseInt(e.target.value));setPage(1);}} title="Rows per page"
+            style={{ padding:"10px 12px", borderRadius:12, border:"1px solid #c3c6d1", fontSize:13, fontWeight:600, color:"#003163", background:"white", cursor:"pointer" }}>
+            {PAGE_SIZE_OPTIONS.map(n=><option key={n} value={n}>{n} / page</option>)}
+          </select>
         </div>
+
+        {presets.length>0 && (
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:12 }}>
+            {presets.map(p=>(
+              <span key={p.name} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"3px 10px", background:"#f1f5f9", borderRadius:99, fontSize:11, color:"#43474f" }}>
+                {p.name}
+                <button onClick={()=>deletePreset(p.name)} style={{ border:"none", background:"none", cursor:"pointer", color:"#ba1a1a", display:"flex", padding:0 }}><M n="close" size={11}/></button>
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Filter chips */}
         {chips.length>0 && (
@@ -383,6 +467,9 @@ export default function Candidates({ masters, user }) {
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
               <thead>
                 <tr style={{ background:"#f8f9fa", borderBottom:"2px solid #c3c6d1" }}>
+                  <th style={{ padding:"14px 8px", width:36 }}>
+                    <input type="checkbox" checked={allOnPageSelected} onChange={toggleAllOnPage} style={{ width:16, height:16, cursor:"pointer" }}/>
+                  </th>
                   {[["SR",45],["CLIENT",130],["CANDIDATE",160],["POSITION",130],["LOCATION",90],["OFFER",100],["DOJ",110],["RESIGN",90],["OWNER",110],["STATUS",130],["CTC",90],["CODE",80],["ACTION",110]].map(([l,w])=>(
                     <th key={l} style={{ padding:"14px 16px", textAlign:"left", fontSize:10, fontWeight:700, color:"#003163", letterSpacing:".08em", textTransform:"uppercase", whiteSpace:"nowrap", minWidth:w }}>
                       {l}
@@ -392,7 +479,7 @@ export default function Candidates({ masters, user }) {
               </thead>
               <tbody style={{ divideY:"1px solid #f1f5f9" }}>
                 {!(result.candidates||[]).length && (
-                  <tr><td colSpan={13} style={{ padding:100, textAlign:"center" }}>
+                  <tr><td colSpan={14} style={{ padding:100, textAlign:"center" }}>
                     <div style={{ width:80, height:80, borderRadius:"50%", background:"#f8f9fa", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px" }}>
                       <M n="person_search" size={40} style={{color:"#c3c6d1"}}/>
                     </div>
@@ -402,9 +489,12 @@ export default function Candidates({ masters, user }) {
                   </td></tr>
                 )}
                 {(result.candidates||[]).map((c,i) => (
-                  <tr key={c.id} style={{ borderBottom:"1px solid #f1f5f9", background:"white", transition:"background .1s" }}
-                    onMouseEnter={e=>e.currentTarget.style.background="#f8f9fa"}
-                    onMouseLeave={e=>e.currentTarget.style.background="white"}>
+                  <tr key={c.id} style={{ borderBottom:"1px solid #f1f5f9", background:selected.has(c.id)?"#eff4ff":"white", transition:"background .1s" }}
+                    onMouseEnter={e=>{ if(!selected.has(c.id)) e.currentTarget.style.background="#f8f9fa"; }}
+                    onMouseLeave={e=>{ e.currentTarget.style.background=selected.has(c.id)?"#eff4ff":"white"; }}>
+                    <td style={{ padding:"14px 8px" }} onClick={e=>e.stopPropagation()}>
+                      <input type="checkbox" checked={selected.has(c.id)} onChange={()=>toggleOne(c.id)} style={{ width:16, height:16, cursor:"pointer" }}/>
+                    </td>
                     <td style={{ padding:"14px 16px" }}>
                       <span style={{ background:"#f1f5f9", color:"#737780", fontSize:11, fontWeight:800, padding:"3px 6px", borderRadius:6 }}>{(page-1)*PER+i+1}</span>
                     </td>
@@ -474,6 +564,10 @@ export default function Candidates({ masters, user }) {
       <Modal open={modal?.type==="view"} onClose={()=>setModal(null)} title="Candidate Profile">
         <ViewCandidate c={modal?.data}/>
       </Modal>
+
+      {showBulk && selectedCandidates.length>0 && (
+        <BulkMessageModal candidates={selectedCandidates} onClose={()=>setShowBulk(false)}/>
+      )}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
