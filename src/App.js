@@ -1,28 +1,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "./api";
+import { Icon } from "./components/UI";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Candidates from "./pages/Candidates";
 import Masters from "./pages/Masters";
 import Audit from "./pages/Audit";
 import Companies from "./pages/Companies";
+import Report from "./pages/Report";
 
-// ─── MATERIAL ICON ─────────────────────────────────────────────────────────────
-const M = ({ n, fill = 0, size = 22, style = {} }) => (
-  <span style={{ fontFamily:"Material Symbols Outlined", fontVariationSettings:`'FILL' ${fill},'wght' 400,'GRAD' 0,'opsz' 24`, fontSize:size, display:"inline-block", verticalAlign:"middle", lineHeight:1, userSelect:"none", ...style }}>{n}</span>
-);
-
-// ─── SESSION EXPIRED MODAL ────────────────────────────────────────────────────
-function SessionModal({ onDismiss }) {
+// ─── SESSION EXPIRY MODAL ─────────────────────────────────────────────────────
+function SessionExpiredModal({ onDismiss }) {
   return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(0,49,99,.4)",backdropFilter:"blur(4px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center" }}>
-      <div style={{ background:"white",borderRadius:20,padding:"36px 40px",maxWidth:380,width:"100%",textAlign:"center",boxShadow:"0 25px 60px rgba(0,0,0,.3)" }}>
-        <div style={{ width:60,height:60,borderRadius:"50%",background:"#dce9ff",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px" }}>
-          <M n="lock" size={28} style={{color:"#003163"}}/>
-        </div>
-        <h2 style={{ fontSize:20,fontWeight:700,color:"#003163",margin:"0 0 8px" }}>Session Expired</h2>
-        <p style={{ fontSize:14,color:"#43474f",margin:"0 0 24px",lineHeight:1.6 }}>Your session has timed out for security. Sign in again to continue.</p>
-        <button onClick={onDismiss} style={{ width:"100%",padding:13,background:"linear-gradient(135deg,#003163,#001c3e)",color:"white",border:"none",borderRadius:12,fontWeight:700,fontSize:15,cursor:"pointer" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter,system-ui,sans-serif" }}>
+      <div style={{ background: "white", borderRadius: 16, padding: "32px 36px", maxWidth: 400, width: "100%", textAlign: "center", boxShadow: "0 25px 60px rgba(0,0,0,.4)" }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: "0 0 8px" }}>Session Expired</h2>
+        <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 24px", lineHeight: 1.5 }}>
+          Your session has expired for security. Please sign in again to continue.
+        </p>
+        <button onClick={onDismiss} style={{ width: "100%", padding: "12px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
           Sign In Again
         </button>
       </div>
@@ -36,47 +33,65 @@ export default function App() {
     if (!t) return null;
     try {
       const p = JSON.parse(atob(t.split(".")[1]));
-      if (p.exp * 1000 < Date.now()) { sessionStorage.removeItem("crm_token"); return null; }
-      return { id:p.id, name:p.name, email:p.email, role:p.role };
-    } catch { sessionStorage.removeItem("crm_token"); return null; }
+      // Check if token is already expired
+      if (p.exp * 1000 < Date.now()) {
+        sessionStorage.removeItem("crm_token");
+        sessionStorage.removeItem("crm_session_expires");
+        return null;
+      }
+      return { id: p.id, name: p.name, email: p.email, role: p.role };
+    } catch {
+      sessionStorage.removeItem("crm_token");
+      return null;
+    }
   });
 
-  const [page, setPage]               = useState("dashboard");
-  const [pendingFilter, setPendingFilter] = useState(null);
-  const [masters, setMasters]         = useState({ clients:[], owners:[], joiningStatus:[], resignationStatus:[], locations:[], designations:[], statusCodes:[], _full:{} });
+  const [page, setPage] = useState("dashboard");
+  const [masters, setMasters] = useState({ clients: [], owners: [], joiningStatus: [], resignationStatus: [], locations: [], designations: [], statusCodes: [], _full: {} });
+  const [refreshKey, setRefreshKey] = useState(0);
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [mobileOpen, setMobileOpen]   = useState(false);
+  const [openCandidateId, setOpenCandidateId] = useState(null);
 
-  // Listen for 401 auto-logout
-  useEffect(() => {
-    const h = e => { if (e.detail==="session_expired") { setUser(null); setSessionExpired(true); } };
-    window.addEventListener("crm_logout", h);
-    return () => window.removeEventListener("crm_logout", h);
+  // Navigate to the Candidates page and open a specific candidate's edit
+  // form directly — used by alert items on the Dashboard.
+  const openCandidateForm = useCallback((id) => {
+    setPage("candidates");
+    setOpenCandidateId(id);
   }, []);
 
-  // Auto-logout timer
+  // Listen for auto-logout events (e.g. 401 from API)
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail === "session_expired") {
+        setUser(null);
+        setSessionExpired(true);
+      }
+    };
+    window.addEventListener("crm_logout", handler);
+    return () => window.removeEventListener("crm_logout", handler);
+  }, []);
+
+  // Auto-logout timer based on token expiry
   useEffect(() => {
     if (!user) return;
-    const exp = parseInt(sessionStorage.getItem("crm_session_expires")||"0");
-    if (!exp) return;
-    const ms = exp - Date.now();
-    if (ms <= 0) { logout(); return; }
-    const t = setTimeout(() => logout("session_expired"), ms);
-    return () => clearTimeout(t);
+    const expires = parseInt(sessionStorage.getItem("crm_session_expires") || "0");
+    if (!expires) return;
+    const msLeft = expires - Date.now();
+    if (msLeft <= 0) { logout(); return; }
+    // Set timer to auto-logout when session expires
+    const timer = setTimeout(() => {
+      logout("session_expired");
+    }, msLeft);
+    return () => clearTimeout(timer);
   }, [user]);
 
   const loadMasters = useCallback(() => {
-    if (user) api.getMasters().then(m => { if (m&&!m.error) setMasters(m); }).catch(console.error);
+    if (user) api.getMasters().then(m => { if (m && !m.error) setMasters(m); }).catch(console.error);
   }, [user]);
 
   useEffect(() => { loadMasters(); }, [loadMasters]);
 
-  if (!user) return (
-    <>
-      {sessionExpired && <SessionModal onDismiss={() => setSessionExpired(false)}/>}
-      <Login onLogin={u => { setUser(u); setSessionExpired(false); }}/>
-    </>
-  );
+  if (!user && !sessionExpired) return <Login onLogin={u => { setUser(u); setSessionExpired(false); }} />;
 
   const logout = (reason) => {
     sessionStorage.removeItem("crm_token");
@@ -86,130 +101,130 @@ export default function App() {
   };
 
   const nav = [
-    { k:"dashboard",  l:"Dashboard",    icon:"dashboard",        roles:["admin","recruiter","viewer"] },
-    { k:"candidates", l:"Candidates",   icon:"group",            roles:["admin","recruiter","viewer"] },
-    { k:"companies",  l:"Clients",      icon:"business_center",  roles:["admin","recruiter","viewer"] },
-    { k:"masters",    l:"Master Data",  icon:"tune",             roles:["admin"] },
-    { k:"audit",      l:"Audit Log",    icon:"history",          roles:["admin"] },
-  ].filter(n => n.roles.includes(user.role));
+    { k: "dashboard",  l: "Dashboard",       i: "dash"  },
+    { k: "candidates", l: "Candidates",       i: "users" },
+    // Recruiters get a personal Reports page instead of the shared Companies (client) page
+    ...(user && user.role === "recruiter" ? [{ k: "reports", l: "Reports", i: "trendUp" }] : []),
+    ...(user && user.role !== "recruiter" ? [{ k: "companies", l: "Companies", i: "chart" }] : []),
+    ...(user ? (user.role === "admin" ? [
+      { k: "masters",  l: "Master Data",      i: "cog"   },
+      { k: "audit",    l: "Audit Log",        i: "eye"   },
+    ] : []) : []),
+  ];
 
-  const getSessionLeft = () => {
-    const exp = parseInt(sessionStorage.getItem("crm_session_expires")||"0");
-    if (!exp) return null;
-    const ms = exp - Date.now();
-    if (ms <= 0) return null;
-    const h = Math.floor(ms/3600000);
-    const m = Math.floor((ms%3600000)/60000);
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const PAGE_TITLES = {
+    dashboard: "Dashboard", candidates: "Candidates", reports: "Reports",
+    companies: "Company Contacts", masters: "Master Data", audit: "Audit Log"
   };
 
-  const navigate = (targetPage, filter=null) => { if (filter) setPendingFilter(filter); setPage(targetPage); };
+  // Session time remaining display
+  const getSessionInfo = () => {
+    const expires = parseInt(sessionStorage.getItem("crm_session_expires") || "0");
+    if (!expires) return null;
+    const msLeft = expires - Date.now();
+    if (msLeft <= 0) return null;
+    const hoursLeft = Math.floor(msLeft / 3600000);
+    const minsLeft = Math.floor((msLeft % 3600000) / 60000);
+    if (hoursLeft > 0) return `${hoursLeft}h ${minsLeft}m left`;
+    return `${minsLeft}m left`;
+  };
+
+  if (!user) {
+    return (
+      <>
+        {sessionExpired && <SessionExpiredModal onDismiss={() => setSessionExpired(false)} />}
+        <Login onLogin={u => { setUser(u); setSessionExpired(false); }} />
+      </>
+    );
+  }
 
   return (
-    <div style={{ display:"flex", fontFamily:"'Inter',system-ui,sans-serif", minHeight:"100vh", background:"#F8F9FA" }}>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"/>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"/>
+    <div style={{ display: "flex", fontFamily: "'Inter',system-ui,sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
+      {sessionExpired && <SessionExpiredModal onDismiss={() => { setSessionExpired(false); setUser(null); }} />}
 
       {/* ── SIDEBAR ── */}
-      {mobileOpen && <div onClick={()=>setMobileOpen(false)} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,.3)",zIndex:49 }}/>}
-
-      <aside style={{ width:256, background:"#eff4ff", borderRight:"1px solid #c3c6d1", minHeight:"100vh", display:"flex", flexDirection:"column", padding:16, flexShrink:0, position:"sticky", top:0, height:"100vh", overflowY:"auto", zIndex:50, transition:"transform .3s" }}>
-
-        {/* Brand */}
-        <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:48,paddingLeft:8 }}>
-          <div style={{ width:40,height:40,borderRadius:12,background:"#003163",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-            <span style={{ color:"white",fontWeight:900,fontSize:18,fontFamily:"Georgia,serif" }}>A</span>
-          </div>
-          <div>
-            <h1 style={{ fontSize:18,fontWeight:700,color:"#003163",margin:0,lineHeight:1.1 }}>Ample Leap</h1>
-            <p style={{ fontSize:10,textTransform:"uppercase",letterSpacing:"0.12em",color:"#43474f",fontWeight:600,margin:0,marginTop:2 }}>Grow and Smile</p>
+      <aside style={{ width: 220, background: "#0f172a", minHeight: "100vh", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh", overflow: "auto" }}>
+        <div style={{ padding: "22px 18px 16px", borderBottom: "1px solid #1e293b" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#2563eb,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(37,99,235,.4)" }}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "white", lineHeight: 1.1 }}>Ample Leap</div>
+              <div style={{ fontSize: 9, color: "#475569", marginTop: 1, letterSpacing: .5 }}>RECRUITMENT CRM</div>
+            </div>
           </div>
         </div>
 
-        {/* Nav */}
-        <nav style={{ flex:1, display:"flex", flexDirection:"column", gap:4 }}>
-          {nav.map(n => {
-            const active = page === n.k;
-            return (
-              <button key={n.k} onClick={()=>{ setPage(n.k); setMobileOpen(false); }}
-                style={{ display:"flex",alignItems:"center",gap:14,padding:"10px 14px",borderRadius:12,border:"none",background:active?"#E67E22":"transparent",color:active?"white":"#43474f",fontWeight:active?700:500,cursor:"pointer",fontSize:14,textAlign:"left",fontFamily:"inherit",transition:"all .15s",transform:active?"translateX(4px)":"translateX(0)" }}
-                onMouseEnter={e=>{ if(!active){ e.currentTarget.style.background="#dce9ff"; e.currentTarget.style.color="#003163"; } }}
-                onMouseLeave={e=>{ if(!active){ e.currentTarget.style.background="transparent"; e.currentTarget.style.color="#43474f"; } }}>
-                <M n={n.icon} fill={active?1:0} size={20} style={{color:active?"white":"#43474f"}}/>
-                {n.l}
-              </button>
-            );
-          })}
+        <nav style={{ flex: 1, padding: "12px 10px" }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#334155", textTransform: "uppercase", letterSpacing: 1, padding: "0 8px", marginBottom: 6 }}>Navigation</div>
+          {nav.map(n => (
+            <button key={n.k} onClick={() => setPage(n.k)}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none", background: page === n.k ? "rgba(37,99,235,.2)" : "transparent", color: page === n.k ? "#93c5fd" : "#64748b", fontWeight: page === n.k ? 700 : 400, cursor: "pointer", fontSize: 13, marginBottom: 2, textAlign: "left", outline: "none", transition: "all .15s", fontFamily: "inherit" }}>
+              <span style={{ opacity: .9, flexShrink: 0 }}><Icon n={n.i} s={15} /></span>
+              {n.l}
+              {page === n.k && <span style={{ marginLeft: "auto", width: 5, height: 5, borderRadius: "50%", background: "#3b82f6", flexShrink: 0 }} />}
+            </button>
+          ))}
         </nav>
 
-        {/* Add candidate CTA */}
-        {user.role!=="viewer" && (
-          <button onClick={()=>setPage("candidates")} style={{ width:"100%",padding:"12px 16px",background:"#E67E22",color:"white",border:"none",borderRadius:12,fontWeight:700,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,boxShadow:"0 4px 16px rgba(230,126,34,.35)",marginBottom:16,fontFamily:"inherit" }}>
-            <M n="add" size={18} style={{color:"white"}}/> Add New Candidate
-          </button>
-        )}
-
-        {/* User + Footer */}
-        <div style={{ paddingTop:16,borderTop:"1px solid #c3c6d1" }}>
-          {getSessionLeft() && <div style={{ fontSize:10,color:"#737780",textAlign:"center",marginBottom:10,padding:"4px 8px",background:"#e5eeff",borderRadius:8 }}>🔒 Session: {getSessionLeft()} remaining</div>}
-          <div style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:"white",borderRadius:10,border:"1px solid #c3c6d1",marginBottom:8 }}>
-            <div style={{ width:34,height:34,borderRadius:8,background:"#003163",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"white",flexShrink:0 }}>{user.name[0].toUpperCase()}</div>
-            <div style={{ flex:1,overflow:"hidden" }}>
-              <div style={{ fontSize:13,fontWeight:700,color:"#003163",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{user.name}</div>
-              <div style={{ fontSize:10,color:"#43474f",textTransform:"capitalize" }}>{user.role}</div>
+        <div style={{ padding: "14px 12px", borderTop: "1px solid #1e293b" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10, padding: "8px 10px", background: "rgba(255,255,255,.04)", borderRadius: 9 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#1e40af,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "white", flexShrink: 0 }}>
+              {user.name[0].toUpperCase()}
+            </div>
+            <div style={{ overflow: "hidden", flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
+              <div style={{ fontSize: 9, color: "#475569", textTransform: "capitalize", marginTop: 1 }}>{user.role}</div>
             </div>
           </div>
-          <button onClick={()=>logout()} style={{ width:"100%",display:"flex",alignItems:"center",gap:8,padding:"9px 12px",border:"1px solid #c3c6d1",borderRadius:10,background:"transparent",color:"#43474f",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit",transition:"all .15s" }}
-            onMouseEnter={e=>{ e.currentTarget.style.color="#ba1a1a"; e.currentTarget.style.borderColor="#ba1a1a"; e.currentTarget.style.background="#ffdad6"; }}
-            onMouseLeave={e=>{ e.currentTarget.style.color="#43474f"; e.currentTarget.style.borderColor="#c3c6d1"; e.currentTarget.style.background="transparent"; }}>
-            <M n="logout" size={16}/> Sign Out
+          {getSessionInfo() && (
+            <div style={{ fontSize: 9, color: "#475569", textAlign: "center", marginBottom: 6, background: "rgba(255,255,255,.03)", borderRadius: 6, padding: "3px 8px" }}>
+              🔒 Session: {getSessionInfo()}
+            </div>
+          )}
+          <button onClick={() => logout()} style={{ width: "100%", display: "flex", alignItems: "center", gap: 7, padding: "8px 10px", borderRadius: 8, border: "1px solid #1e293b", background: "transparent", color: "#64748b", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit", transition: "all .15s" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#1e293b"; e.currentTarget.style.color = "#ef4444"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#64748b"; }}>
+            <Icon n="out" s={12} /> Sign Out
           </button>
         </div>
       </aside>
 
       {/* ── MAIN ── */}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
-        {/* Top bar */}
-        <header style={{ background:"white", borderBottom:"1px solid #c3c6d1", padding:"0 24px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:40 }}>
-          <div style={{ display:"flex",alignItems:"center",gap:12 }}>
-            <button onClick={()=>setMobileOpen(v=>!v)} style={{ background:"none",border:"none",cursor:"pointer",color:"#003163",display:"flex",padding:2 }}>
-              <M n="menu" size={22}/>
-            </button>
-            <h2 style={{ fontSize:18,fontWeight:700,color:"#003163",margin:0 }}>
-              {{dashboard:"Recruitment Overview",candidates:"Candidates",companies:"Client Contacts",masters:"Master Data",audit:"Audit Log"}[page]}
-            </h2>
+      <main style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div style={{ background: "white", borderBottom: "1px solid #e2e8f0", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{PAGE_TITLES[page]}</div>
+            <span style={{ color: "#cbd5e1", fontSize: 12 }}>›</span>
+            <div style={{ fontSize: 12, color: "#64748b" }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
           </div>
-          <div style={{ display:"flex",alignItems:"center",gap:12 }}>
-            {/* Search */}
-            <div style={{ display:"flex",alignItems:"center",gap:8,background:"#eff4ff",border:"1px solid #c3c6d1",borderRadius:99,padding:"6px 14px",width:200 }}>
-              <M n="search" size={18} style={{color:"#43474f"}}/>
-              <input placeholder="Search candidates…" style={{ border:"none",background:"none",outline:"none",fontSize:13,width:"100%",color:"#0b1c30" }}/>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ fontSize: 11, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", padding: "4px 10px", borderRadius: 20, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} /> Live
             </div>
-            <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-              <div style={{ textAlign:"right" }}>
-                <div style={{ fontSize:14,fontWeight:700,color:"#003163" }}>{user.name}</div>
-                <div style={{ fontSize:11,color:"#43474f",textTransform:"capitalize" }}>{user.role}</div>
-              </div>
-              <div style={{ width:38,height:38,borderRadius:"50%",background:"#003163",border:"2px solid #E67E22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:"white" }}>{user.name[0].toUpperCase()}</div>
-            </div>
+            <div style={{ fontSize: 11, background: "#f0f9ff", color: "#0369a1", border: "1px solid #bae6fd", padding: "4px 10px", borderRadius: 20, fontWeight: 600, textTransform: "capitalize" }}>{user.role}</div>
           </div>
-        </header>
+        </div>
 
-        {/* Page */}
-        <main style={{ padding:24, flex:1, overflow:"auto" }}>
-          {page==="dashboard"  && <Dashboard onNavigate={navigate}/>}
-          {page==="candidates" && <Candidates masters={masters} user={user} initialFilter={pendingFilter} onConsumeInitialFilter={()=>setPendingFilter(null)}/>}
-          {page==="companies"  && <Companies user={user}/>}
-          {page==="masters"    && user.role==="admin" && <Masters masters={masters} reload={loadMasters} currentUser={user}/>}
-          {page==="audit"      && user.role==="admin" && <Audit/>}
-        </main>
-      </div>
+        <div style={{ padding: 24, flex: 1 }}>
+          {page === "dashboard"  && <Dashboard key={refreshKey} onOpenCandidate={openCandidateForm} user={user} />}
+          {page === "candidates" && <Candidates key={refreshKey} masters={masters} user={user} openCandidateId={openCandidateId} onOpenedCandidate={() => setOpenCandidateId(null)} />}
+          {page === "reports"    && user.role === "recruiter" && <Report user={user} />}
+          {page === "companies"  && user.role !== "recruiter" && <Companies user={user} />}
+          {page === "masters"    && user.role === "admin" && <Masters masters={masters} reload={loadMasters} currentUser={user} />}
+          {page === "audit"      && user.role === "admin" && <Audit />}
+        </div>
+      </main>
 
       <style>{`
-        @keyframes spin { to{transform:rotate(360deg)} }
-        ::-webkit-scrollbar { width:5px; height:5px; }
-        ::-webkit-scrollbar-track { background:transparent; }
-        ::-webkit-scrollbar-thumb { background:#C3C6D1; border-radius:10px; }
+        * { box-sizing: border-box; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}</style>
     </div>
   );
