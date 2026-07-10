@@ -291,6 +291,55 @@ function TotalCandidatesCard({ periods, onOpen }) {
   );
 }
 
+// ─── PER-COMPANY STATUS BREAKDOWN (Pipeline / Red / Backout / Joined / Offered) ─
+function ClientStatusTable({ rows, onCellClick }) {
+  const cols = [
+    { k:"pipeline", l:"Pipeline", c:"#003163" },
+    { k:"red",      l:"Red",      c:"#dc2626" },
+    { k:"backout",  l:"Backout",  c:"#737780" },
+    { k:"joined",   l:"Joined",   c:"#22C55E" },
+    { k:"offered",  l:"Offered",  c:"#E67E22" },
+  ];
+  if (!rows.length) {
+    return <div style={{ textAlign:"center", color:"#43474f", padding:30, fontSize:13 }}>No client data yet</div>;
+  }
+  return (
+    <div style={{ overflowX:"auto" }}>
+      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+        <thead>
+          <tr style={{ borderBottom:"2px solid #c3c6d1" }}>
+            <th style={{ textAlign:"left", padding:"8px 10px", fontSize:10, fontWeight:700, color:"#003163", textTransform:"uppercase", letterSpacing:".06em" }}>Company</th>
+            {cols.map(c=>(
+              <th key={c.k} style={{ textAlign:"center", padding:"8px 10px", fontSize:10, fontWeight:700, color:c.c, textTransform:"uppercase", letterSpacing:".06em" }}>{c.l}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(row=>(
+            <tr key={row.clientName} style={{ borderBottom:"1px solid #f1f5f9" }}>
+              <td style={{ padding:"10px", fontWeight:600, color:"#0b1c30", maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.clientName}</td>
+              {cols.map(c=>{
+                const val = row[c.k]||0;
+                return (
+                  <td key={c.k} style={{ textAlign:"center", padding:"10px" }}>
+                    <span onClick={()=>onCellClick(row.clientName, c.k)}
+                      style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", minWidth:28, padding:"3px 8px", borderRadius:8, fontWeight:700,
+                        cursor: val>0 ? "pointer" : "default",
+                        color: val>0 ? "white" : "#c3c6d1",
+                        background: val>0 ? c.c : "#f8f9fa" }}>
+                      {val}
+                    </span>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 export default function Dashboard({ onNavigate }) {
   const [data, setData]       = useState(null);
@@ -329,7 +378,7 @@ export default function Dashboard({ onNavigate }) {
   if (!data) return null;
 
   const { total=0, offered=0, joined=0, resPending=0, thisMonth=0, nextMonth=0, funnel, statusGroups=[], clientGroups=[], months=[],
-          candidatesByPeriod = { last3:0, last6:0, last12:0, total:0 } } = data;
+          candidatesByPeriod = { last3:0, last6:0, last12:0, total:0 }, clientStatusBreakdown=[] } = data;
 
   const goToday = () => { const d=new Date(); return d.toISOString().slice(0,10); };
   const monthRange = (offset=0) => {
@@ -518,6 +567,21 @@ export default function Dashboard({ onNavigate }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Per-Company Status Breakdown -- synced live with candidate data */}
+      <div style={{ background:"white",padding:24,borderRadius:14,border:"1px solid #c3c6d1",marginTop:16 }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20 }}>
+          <div>
+            <h4 style={{ fontSize:20,fontWeight:700,color:"#003163",margin:0 }}>Joining Status by Company</h4>
+            <p style={{ color:"#43474f",fontSize:13,marginTop:4 }}>Pipeline, Red-flagged, Backout, Joined and Offered candidates per client.</p>
+          </div>
+        </div>
+        <ClientStatusTable rows={clientStatusBreakdown} onCellClick={(clientName,statusKey)=>{
+          if (statusKey==="pipeline") { nav("candidates", { clients:[clientName] }); return; }
+          const label = { red:"Red", backout:"Backout", joined:"Joined", offered:"Offered" }[statusKey];
+          nav("candidates", { clients:[clientName], statuses:[label] });
+        }}/>
       </div>
 
       {showDrawer && alerts && <AlertsDrawer alerts={alerts} onClose={()=>setShowDrawer(false)} onUpdated={refresh} onNavigate={onNavigate}/>}
