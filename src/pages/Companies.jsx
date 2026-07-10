@@ -169,7 +169,7 @@ function ViewCompany({ c }) {
 }
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
-export default function Companies({ user }) {
+export default function Companies({ user, openCompanyId, onOpenedCompany }) {
   const [result, setResult] = useState({companies:[],total:0,pages:1});
   const [search, setSearch] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
@@ -202,6 +202,19 @@ export default function Companies({ user }) {
 
   useEffect(()=>{ const t=setTimeout(()=>{load(1,search,filterCompany);setPage(1);},400); return()=>clearTimeout(t); },[search]);
   useEffect(()=>{ load(page,search,filterCompany); },[page,filterCompany]);
+
+  // Open a specific company's edit form directly (used by Dashboard alerts)
+  useEffect(() => {
+    if (!openCompanyId) return;
+    (async () => {
+      try {
+        const c = await api.getCompany(openCompanyId);
+        if (c && !c.error) setModal({ type: "edit", data: c });
+      } catch (e) { console.error(e); }
+      onOpenedCompany && onOpenedCompany();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCompanyId]);
 
   const handleSave = async form => {
     if (!form.companyName) { showMsg("Company name required","error"); return; }

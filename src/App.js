@@ -50,13 +50,22 @@ export default function App() {
   const [masters, setMasters] = useState({ clients: [], owners: [], joiningStatus: [], resignationStatus: [], locations: [], designations: [], statusCodes: [], _full: {} });
   const [refreshKey, setRefreshKey] = useState(0);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openCandidateId, setOpenCandidateId] = useState(null);
+  const [openCompanyId, setOpenCompanyId] = useState(null);
+  const [pendingFilter, setPendingFilter] = useState(null);
 
-  // Navigate to the Candidates page and open a specific candidate's edit
-  // form directly — used by alert items on the Dashboard.
-  const openCandidateForm = useCallback((id) => {
-    setPage("candidates");
-    setOpenCandidateId(id);
+  // Single navigation entry point used by Dashboard (KPI clicks, alert
+  // "Open" links, etc). `filter` can be a plain candidate-filter object, or
+  // { openId } to jump straight into a specific record's edit form.
+  const goTo = useCallback((page, filter) => {
+    setPage(page);
+    if (filter && filter.openId !== undefined) {
+      if (page === "candidates") setOpenCandidateId(filter.openId);
+      if (page === "companies") setOpenCompanyId(filter.openId);
+    } else if (filter) {
+      setPendingFilter(filter);
+    }
   }, []);
 
   // Listen for auto-logout events (e.g. 401 from API)
@@ -143,7 +152,7 @@ export default function App() {
       {sessionExpired && <SessionExpiredModal onDismiss={() => { setSessionExpired(false); setUser(null); }} />}
 
       {/* ── SIDEBAR ── */}
-      <aside style={{ width: 220, background: "#0f172a", minHeight: "100vh", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh", overflow: "auto" }}>
+      <aside style={{ width: sidebarOpen ? 220 : 0, minWidth: 0, background: "#0f172a", minHeight: "100vh", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh", overflow: "hidden", transition: "width .25s ease" }}>
         <div style={{ padding: "22px 18px 16px", borderBottom: "1px solid #1e293b" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#2563eb,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(37,99,235,.4)" }}>
@@ -195,6 +204,12 @@ export default function App() {
       <main style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ background: "white", borderBottom: "1px solid #e2e8f0", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => setSidebarOpen(o => !o)} title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 8, cursor: "pointer", padding: 6, display: "flex" }}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth={2}>
+                <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+              </svg>
+            </button>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{PAGE_TITLES[page]}</div>
             <span style={{ color: "#cbd5e1", fontSize: 12 }}>›</span>
             <div style={{ fontSize: 12, color: "#64748b" }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
@@ -208,10 +223,13 @@ export default function App() {
         </div>
 
         <div style={{ padding: 24, flex: 1 }}>
-          {page === "dashboard"  && <Dashboard key={refreshKey} onOpenCandidate={openCandidateForm} user={user} />}
-          {page === "candidates" && <Candidates key={refreshKey} masters={masters} user={user} openCandidateId={openCandidateId} onOpenedCandidate={() => setOpenCandidateId(null)} />}
+          {page === "dashboard"  && <Dashboard key={refreshKey} onNavigate={goTo} user={user} />}
+          {page === "candidates" && <Candidates key={refreshKey} masters={masters} user={user}
+              openCandidateId={openCandidateId} onOpenedCandidate={() => setOpenCandidateId(null)}
+              initialFilter={pendingFilter} onConsumeInitialFilter={() => setPendingFilter(null)} />}
           {page === "reports"    && user.role === "recruiter" && <Report user={user} />}
-          {page === "companies"  && user.role !== "recruiter" && <Companies user={user} />}
+          {page === "companies"  && user.role !== "recruiter" && <Companies user={user}
+              openCompanyId={openCompanyId} onOpenedCompany={() => setOpenCompanyId(null)} />}
           {page === "masters"    && user.role === "admin" && <Masters masters={masters} reload={loadMasters} currentUser={user} />}
           {page === "audit"      && user.role === "admin" && <Audit />}
         </div>

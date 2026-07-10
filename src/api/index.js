@@ -52,6 +52,7 @@ export const api = {
 
   // Companies
   getCompanies: (p = {}) => fetch(`${BASE_URL}/companies?${new URLSearchParams(p)}`, { headers: H() }).then(handle),
+  getCompany: (id) => fetch(`${BASE_URL}/companies?id=${id}`, { headers: H() }).then(handle),
   createCompany: (d) => fetch(`${BASE_URL}/companies`, { method: "POST", headers: H(), body: JSON.stringify(d) }).then(handle),
   updateCompany: (id, d) => fetch(`${BASE_URL}/companies?id=${id}`, { method: "PUT", headers: H(), body: JSON.stringify(d) }).then(handle),
   deleteCompany: (id) => fetch(`${BASE_URL}/companies?id=${id}`, { method: "DELETE", headers: H() }).then(handle),

@@ -83,8 +83,11 @@ function ViewCandidate({ c }) {
 // ─── MULTI SELECT ─────────────────────────────────────────────────────────────
 function MultiSelect({ label, icon, options, selected, onChange }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const sel = Array.isArray(selected) ? selected : [];
   const toggle = v => onChange(sel.includes(v) ? sel.filter(x=>x!==v) : [...sel,v]);
+  const filteredOptions = options.filter(o => o.toLowerCase().includes(query.trim().toLowerCase()));
+  const closeAndReset = () => { setOpen(false); setQuery(""); };
   return (
     <div>
       <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#43474f", textTransform:"uppercase", letterSpacing:".05em", marginBottom:6 }}>
@@ -97,19 +100,32 @@ function MultiSelect({ label, icon, options, selected, onChange }) {
         <M n={open?"expand_less":"expand_more"} size={18} style={{ color:"#737780", marginLeft:8 }}/>
       </div>
       {open && <>
-        <div onClick={()=>setOpen(false)} style={{ position:"fixed", inset:0, zIndex:98 }}/>
-        <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"white", border:"1px solid #c3c6d1", borderRadius:12, zIndex:99, boxShadow:"0 12px 40px rgba(0,49,99,.15)", maxHeight:220, overflow:"auto", marginTop:6 }}>
-          {sel.length>0 && <div onClick={()=>{onChange([]);setOpen(false);}} style={{ padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, color:"#ba1a1a", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6, background:"#ffdad633" }}>
-            <M n="close" size={16}/> Clear selection
-          </div>}
-          {options.map(o=>(
-            <div key={o} onClick={()=>toggle(o)} style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:10, cursor:"pointer", background:sel.includes(o)?"#eff4ff":"white", borderBottom:"1px solid #f1f5f9" }}>
-              <div style={{ width:18, height:18, borderRadius:4, border:`1px solid ${sel.includes(o)?"#003163":"#c3c6d1"}`, background:sel.includes(o)?"#003163":"white", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                {sel.includes(o) && <M n="check" size={14} style={{ color:"white" }}/>}
+        <div onClick={closeAndReset} style={{ position:"fixed", inset:0, zIndex:98 }}/>
+        <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"white", border:"1px solid #c3c6d1", borderRadius:12, zIndex:99, boxShadow:"0 12px 40px rgba(0,49,99,.15)", maxHeight:260, overflow:"hidden", marginTop:6, display:"flex", flexDirection:"column" }}>
+          <input
+            autoFocus
+            value={query}
+            onChange={e=>setQuery(e.target.value)}
+            onClick={e=>e.stopPropagation()}
+            placeholder={`Search ${label.toLowerCase()}...`}
+            style={{ margin:8, padding:"8px 10px", borderRadius:8, border:"1px solid #c3c6d1", fontSize:13, outline:"none" }}
+          />
+          <div style={{ overflow:"auto" }}>
+            {sel.length>0 && <div onClick={()=>{onChange([]);closeAndReset();}} style={{ padding:"10px 14px", borderBottom:"1px solid #f1f5f9", fontSize:12, color:"#ba1a1a", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6, background:"#ffdad633" }}>
+              <M n="close" size={16}/> Clear selection
+            </div>}
+            {filteredOptions.length===0 && (
+              <div style={{ padding:"14px", fontSize:12, color:"#737780", textAlign:"center" }}>No matches</div>
+            )}
+            {filteredOptions.map(o=>(
+              <div key={o} onClick={()=>toggle(o)} style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:10, cursor:"pointer", background:sel.includes(o)?"#eff4ff":"white", borderBottom:"1px solid #f1f5f9" }}>
+                <div style={{ width:18, height:18, borderRadius:4, border:`1px solid ${sel.includes(o)?"#003163":"#c3c6d1"}`, background:sel.includes(o)?"#003163":"white", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  {sel.includes(o) && <M n="check" size={14} style={{ color:"white" }}/>}
+                </div>
+                <span style={{ fontSize:13, color:sel.includes(o)?"#003163":"#0b1c30", fontWeight:sel.includes(o)?700:500 }}>{o}</span>
               </div>
-              <span style={{ fontSize:13, color:sel.includes(o)?"#003163":"#0b1c30", fontWeight:sel.includes(o)?700:500 }}>{o}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </>}
     </div>
@@ -212,7 +228,7 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const EMPTY = {clients:[],owners:[],resignations:[],statuses:[],codes:[],location:"",designation:"",offerFrom:"",offerTo:"",proposedFrom:"",proposedTo:"",actualFrom:"",actualTo:""};
 const PRESETS_KEY = "crm_filter_presets";
 
-export default function Candidates({ masters, user, initialFilter, onConsumeInitialFilter }) {
+export default function Candidates({ masters, user, initialFilter, onConsumeInitialFilter, openCandidateId, onOpenedCandidate }) {
   const [result, setResult]         = useState({candidates:[],total:0,pages:1});
   const [search, setSearch]         = useState("");
   const [debSearch, setDebSearch]   = useState("");
@@ -239,6 +255,19 @@ export default function Candidates({ masters, user, initialFilter, onConsumeInit
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialFilter]);
+
+  // Open a specific candidate's edit form directly (used by Dashboard alerts)
+  useEffect(() => {
+    if (!openCandidateId) return;
+    (async () => {
+      try {
+        const c = await api.getCandidate(openCandidateId);
+        if (c && !c.error) setModal({ type: "edit", data: c });
+      } catch (e) { console.error(e); }
+      onOpenedCandidate && onOpenedCandidate();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCandidateId]);
 
   const load = useCallback(async (p=1,s="",f={},per=25,dir="desc") => {
     setLoading(true);

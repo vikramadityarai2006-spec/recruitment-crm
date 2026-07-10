@@ -71,7 +71,7 @@ function DonutChart({ data = [], total }) {
 }
 
 // ─── ALERTS DRAWER ────────────────────────────────────────────────────────────
-function AlertsDrawer({ alerts, onClose, onUpdated }) {
+function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate }) {
   const [busyId, setBusyId] = useState(null);
   const [doneIds, setDoneIds] = useState(() => new Set());
 
@@ -176,6 +176,10 @@ function AlertsDrawer({ alerts, onClose, onUpdated }) {
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
                 <ContactButtons phone={a.mobile} email={a.email} waMessage={`Hi ${a.contactName||""}, following up on agreement renewal for ${a.companyName}.`}/>
                 <UpdateKey label="Renew" id={a.id} onClick={()=>renewAgreement(a)} color="#E67E22"/>
+                <button onClick={()=>{ onNavigate && onNavigate("companies", { openId: a.id }); close(); }}
+                  style={{ fontSize:11, fontWeight:700, color:"#003163", background:"none", border:"none", cursor:"pointer", padding:0 }}>
+                  Open company record →
+                </button>
               </div>
             </div>
           ))}
@@ -191,6 +195,10 @@ function AlertsDrawer({ alerts, onClose, onUpdated }) {
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
                 <ContactButtons phone={d.phone} waMessage={`Hi ${d.candidateName}, confirming your joining on ${fmtD(d.proposedDOJ)}.`}/>
                 <UpdateKey label="Mark Joined" id={d.id} onClick={()=>markJoined(d)}/>
+                <button onClick={()=>{ onNavigate && onNavigate("candidates", { openId: d.id }); close(); }}
+                  style={{ fontSize:11, fontWeight:700, color:"#003163", background:"none", border:"none", cursor:"pointer", padding:0 }}>
+                  Open candidate →
+                </button>
               </div>
             </div>
           ))}
@@ -206,6 +214,10 @@ function AlertsDrawer({ alerts, onClose, onUpdated }) {
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
                 <ContactButtons phone={r.phone} waMessage={`Hi ${r.candidateName}, following up on your resignation acceptance.`}/>
                 <UpdateKey label="Mark Accepted" id={r.id} onClick={()=>markResignationAccepted(r)}/>
+                <button onClick={()=>{ onNavigate && onNavigate("candidates", { openId: r.id }); close(); }}
+                  style={{ fontSize:11, fontWeight:700, color:"#003163", background:"none", border:"none", cursor:"pointer", padding:0 }}>
+                  Open candidate →
+                </button>
               </div>
             </div>
           ))}
@@ -249,6 +261,36 @@ function KPICard({ icon, label, value, bar, barColor, badge, badgeColor, delay =
   );
 }
 
+// ─── TOTAL CANDIDATES CARD (3M / 6M / 12M / All) ──────────────────────────────
+function TotalCandidatesCard({ periods, onOpen }) {
+  const [range, setRange] = useState("total"); // "last3" | "last6" | "last12" | "total"
+  const tabs = [
+    { k: "last3",  l: "3M" },
+    { k: "last6",  l: "6M" },
+    { k: "last12", l: "12M" },
+    { k: "total",  l: "All" },
+  ];
+  return (
+    <div style={{ background:"white", padding:16, borderRadius:12, border:"1px solid #c3c6d1", gridColumn:"span 2" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+        <p style={{ fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:".08em", color:"#43474f", margin:0 }}>Total Candidates</p>
+        <div style={{ display:"flex", gap:4 }}>
+          {tabs.map(t => (
+            <button key={t.k} onClick={()=>setRange(t.k)}
+              style={{ padding:"3px 9px", fontSize:10, fontWeight:700, borderRadius:99, border:"none", cursor:"pointer",
+                background: range===t.k ? "#003163" : "#eff4ff", color: range===t.k ? "white" : "#003163" }}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+      </div>
+      <h4 onClick={()=>onOpen(range)} style={{ fontSize:28, fontWeight:700, color:"#0b1c30", margin:0, cursor:"pointer" }}>
+        {(periods[range]||0).toLocaleString("en-IN")}
+      </h4>
+    </div>
+  );
+}
+
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 export default function Dashboard({ onNavigate }) {
   const [data, setData]       = useState(null);
@@ -286,7 +328,8 @@ export default function Dashboard({ onNavigate }) {
   if (error) return <div style={{ color:"#ba1a1a",padding:20,background:"#ffdad6",borderRadius:12 }}>Error: {error}</div>;
   if (!data) return null;
 
-  const { total=0, offered=0, joined=0, resPending=0, thisMonth=0, nextMonth=0, funnel, statusGroups=[], clientGroups=[], months=[] } = data;
+  const { total=0, offered=0, joined=0, resPending=0, thisMonth=0, nextMonth=0, funnel, statusGroups=[], clientGroups=[], months=[],
+          candidatesByPeriod = { last3:0, last6:0, last12:0, total:0 } } = data;
 
   const goToday = () => { const d=new Date(); return d.toISOString().slice(0,10); };
   const monthRange = (offset=0) => {
@@ -296,10 +339,9 @@ export default function Dashboard({ onNavigate }) {
   const nav = (page, filter) => onNavigate && onNavigate(page, filter);
 
   const kpiCards = [
-    { icon:"person_search", label:"Total Candidates", value:total,      bar:75, barColor:"#003163", badge:"+12%",        badgeColor:"#22C55E", onClick:()=>nav("candidates", {}) },
     { icon:"assignment_turned_in",label:"Offered",    value:offered,    bar:40, barColor:"#E67E22", badge:"+5%",         badgeColor:"#22C55E", onClick:()=>nav("candidates", {statuses:["Offered"]}) },
     { icon:"verified",      label:"Joined",           value:joined,     bar:65, barColor:"#22C55E", badge:"+8%",         badgeColor:"#22C55E", onClick:()=>nav("candidates", {statuses:["Joined"]}) },
-    { icon:"contract",      label:"Agreements",       value:0,          bar:30, barColor:"#ba1a1a", badge:"Check now",   badgeColor:"#ba1a1a", onClick:()=>nav("companies") },
+    { icon:"contract",      label:"Agreements",       value:alerts?.expiringAgreements?.length||0, bar:30, barColor:"#ba1a1a", badge:"Check now",   badgeColor:"#ba1a1a", onClick:()=>nav("companies") },
     { icon:"calendar_today",label:"Joining This Month",value:thisMonth,  bar:55, barColor:"#003163", badge:"This month",  badgeColor:"#43474f", onClick:()=>nav("candidates", {actualFrom:monthRange(0).from, actualTo:monthRange(0).to}) },
     { icon:"person_off",    label:"Resign Pending",   value:resPending,  bar:15, barColor:"#737780", badge:resPending>0?"Action needed":"Clear", badgeColor:resPending>0?"#F97316":"#22C55E", onClick:()=>nav("candidates", {resignations:["Pending"]}) },
   ];
@@ -352,6 +394,7 @@ export default function Dashboard({ onNavigate }) {
 
       {/* KPI Grid */}
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12,marginBottom:20 }}>
+        <TotalCandidatesCard periods={candidatesByPeriod} onOpen={()=>nav("candidates", {})} />
         {kpiCards.map((c,i) => <KPICard key={c.label} {...c} delay={i*80}/>)}
       </div>
 
@@ -477,7 +520,7 @@ export default function Dashboard({ onNavigate }) {
         </div>
       </div>
 
-      {showDrawer && alerts && <AlertsDrawer alerts={alerts} onClose={()=>setShowDrawer(false)} onUpdated={refresh}/>}
+      {showDrawer && alerts && <AlertsDrawer alerts={alerts} onClose={()=>setShowDrawer(false)} onUpdated={refresh} onNavigate={onNavigate}/>}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
