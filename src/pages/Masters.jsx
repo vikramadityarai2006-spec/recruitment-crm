@@ -2,36 +2,23 @@ import { useState, useEffect } from "react";
 import { api } from "../api";
 import { Spin } from "../components/UI";
 
-// ─── DESIGN TOKENS (navy / orange system) ─────────────────────────────────────
-const NAVY = "#003163";
-const NAVY_LIGHT = "#789ad3";
-const NAVY_TINT = "rgba(0,49,99,0.05)";
-const ORANGE = "#E67E22";
-const ORANGE_HOVER = "#d35400";
-const BORDER = "#e2e8f0";
-
 // ─── ROLE CONFIG ──────────────────────────────────────────────────────────────
 const ROLES = {
-  admin:     { label: "Admin",     icon: "🔑", color: "#d97706", bg: "#fef3c7", border: "#fde68a", desc: "Full access to all features" },
-  recruiter: { label: "Recruiter", icon: "✏️", color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe", desc: "Can add and edit candidates" },
-  viewer:    { label: "Viewer",    icon: "👁️", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0", desc: "Read-only access" },
+  admin:     { label: "Admin",     icon: "admin_panel_settings", cls: "text-secondary bg-secondary-fixed border-secondary", desc: "Full access to all features" },
+  recruiter: { label: "Recruiter", icon: "edit_square",          cls: "text-primary-container bg-primary-fixed border-primary-container", desc: "Can add and edit candidates" },
+  viewer:    { label: "Viewer",    icon: "visibility",           cls: "text-green-600 bg-green-50 border-green-600", desc: "Read-only access" },
 };
 
-// ─── PRIMARY (ORANGE) BUTTON ──────────────────────────────────────────────────
-function PrimaryButton({ onClick, disabled, children, style }) {
-  const [hover, setHover] = useState(false);
+const TAB_ICONS = {
+  clients: "apartment", owners: "person_search", joiningStatus: "assignment_turned_in",
+  resignationStatus: "person_off", locations: "location_on", designations: "work",
+  statusCodes: "palette", users: "group",
+};
+
+function PrimaryButton({ onClick, disabled, children, className = "" }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{
-        background: disabled ? "#e2e8f0" : (hover ? ORANGE_HOVER : ORANGE),
-        color: disabled ? "#94a3b8" : "white",
-        border: "none", borderRadius: 10, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer",
-        boxShadow: disabled ? "none" : "0 4px 12px rgba(230,126,34,.3)",
-        transition: "all .2s", transform: hover && !disabled ? "translateY(-1px)" : "none",
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-        ...style,
-      }}>
+      className={`flex items-center justify-center gap-1.5 bg-secondary hover:bg-accent-hover text-white rounded-xl font-bold transition-all shadow-md active:scale-95 disabled:bg-outline-variant disabled:text-text-tertiary disabled:cursor-not-allowed disabled:shadow-none ${className}`}>
       {children}
     </button>
   );
@@ -54,114 +41,69 @@ function UserCard({ u, currentUserId, onRoleChange, onToggle, onDelete, onResetP
   };
 
   return (
-    <div style={{
-      background: "white", borderRadius: 14, border: `1px solid ${u.active ? BORDER : "#fecaca"}`,
-      boxShadow: "0 1px 4px rgba(0,0,0,.06)", overflow: "hidden", transition: "box-shadow .2s",
-      opacity: u.active ? 1 : .85,
-    }}>
-      {/* Header */}
-      <div style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid #f8fafc", background: "#fafbfc" }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-          background: u.active ? `linear-gradient(135deg, ${NAVY}, ${NAVY_LIGHT})` : "#cbd5e1",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 18, fontWeight: 900, color: "white",
-        }}>
+    <div className={`bg-surface-container-lowest border rounded-xl overflow-hidden transition-all hover:shadow-md ${u.active ? "border-surface-variant" : "border-red-200 opacity-85"}`}>
+      <div className="p-4 flex items-center gap-3 border-b border-surface-variant bg-surface-container-low">
+        <div className={`w-11 h-11 rounded-lg shrink-0 flex items-center justify-center font-bold text-white text-lg ${u.active ? "bg-gradient-to-br from-primary to-on-primary-container" : "bg-gray-400"}`}>
           {u.name[0].toUpperCase()}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: u.active ? "#0f172a" : "#94a3b8", textDecoration: u.active ? "none" : "line-through" }}>{u.name}</span>
-            <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: .6, background: role.bg, color: role.color, padding: "2px 8px", borderRadius: 20, border: `1px solid ${role.border}` }}>{role.label}</span>
-            {isSelf && <span style={{ fontSize: 9, background: NAVY_TINT, color: NAVY, padding: "1px 6px", borderRadius: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: .5 }}>You</span>}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-sm font-bold truncate ${u.active ? "text-text-primary" : "text-text-tertiary line-through"}`}>{u.name}</span>
+            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${role.cls}`}>
+              <span className="material-symbols-outlined text-[12px]">{role.icon}</span> {role.label}
+            </div>
+            {isSelf && <span className="text-[9px] bg-primary/5 text-primary px-1.5 py-0.5 rounded font-bold uppercase">You</span>}
           </div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
+          <div className="text-xs text-text-secondary truncate mt-0.5">{u.email}</div>
         </div>
-        <div style={{
-          width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
-          background: u.active ? "#22c55e" : "#ef4444",
-          boxShadow: `0 0 8px ${u.active ? "rgba(34,197,94,.4)" : "rgba(239,68,68,.4)"}`,
-        }} title={u.active ? "Active" : "Inactive"} />
+        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${u.active ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-red-500"}`} title={u.active ? "Active" : "Inactive"}/>
       </div>
 
-      {/* Role + actions */}
-      <div style={{ padding: "14px 18px" }}>
+      <div className="p-4">
         {!u.active ? (
-          <button onClick={() => onToggle(u.id, u.active, u.name)} style={{ width: "100%", background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", padding: "10px", borderRadius: 9, fontWeight: 700, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            ✅ Enable Account
+          <button onClick={() => onToggle(u.id, u.active, u.name)} className="w-full bg-green-50 text-green-700 border border-green-200 py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5">
+            <span className="material-symbols-outlined text-base">check_circle</span> Enable Account
           </button>
         ) : (
           <>
-            {/* Role selector */}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 9, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: .6, display: "block", marginBottom: 5 }}>Access Control</label>
-              <select
-                value={u.role}
-                onChange={e => !isSelf && onRoleChange(u.id, e.target.value, u.name)}
-                disabled={isSelf}
-                style={{
-                  width: "100%", padding: "9px 10px", borderRadius: 8,
-                  border: `1.5px solid ${BORDER}`, background: "#f8fafc",
-                  color: NAVY, fontSize: 12, fontWeight: 700, outline: "none",
-                  cursor: isSelf ? "not-allowed" : "pointer", opacity: isSelf ? .6 : 1,
-                }}
-              >
-                {Object.entries(ROLES).map(([k, v]) => (
-                  <option key={k} value={k}>{v.icon} {v.label} — {v.desc}</option>
-                ))}
+            <div className="mb-4">
+              <label className="block text-[10px] font-bold text-outline uppercase tracking-wider mb-1.5">Access Permissions</label>
+              <select value={u.role} onChange={e => !isSelf && onRoleChange(u.id, e.target.value, u.name)} disabled={isSelf}
+                className="w-full px-3 py-2 rounded-lg border border-surface-variant bg-surface-container text-primary font-semibold text-sm outline-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v.label} — {v.desc}</option>)}
               </select>
             </div>
 
-            {/* Action buttons */}
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div className="flex gap-2 flex-wrap">
               {!isSelf && (
-                <button onClick={() => onToggle(u.id, u.active, u.name)} style={{
-                  flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #fecaca", cursor: "pointer", fontSize: 11, fontWeight: 700,
-                  background: "#fef2f2", color: "#dc2626",
-                }}>
-                  🚫 Disable
+                <button onClick={() => onToggle(u.id, u.active, u.name)} className="flex-1 py-2 rounded-lg border border-red-200 bg-red-50 text-error font-bold text-xs hover:bg-error hover:text-white transition-colors">
+                  Disable
                 </button>
               )}
-
-              <button onClick={() => setShowReset(v => !v)} style={{
-                flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${BORDER}`, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                background: showReset ? NAVY_TINT : "white", color: NAVY,
-              }}>
-                🔑 Reset
+              <button onClick={() => setShowReset(v => !v)} className={`flex-1 py-2 rounded-lg border border-surface-variant font-bold text-xs transition-colors ${showReset ? "bg-primary/5 text-primary" : "bg-surface-container-lowest text-primary hover:bg-surface-container-low"}`}>
+                Reset Pass
               </button>
-
-              {!isSelf && (
-                confirmDelete ? (
-                  <div style={{ display: "flex", gap: 4, width: "100%" }}>
-                    <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 600, alignSelf: "center", flex: 1 }}>Sure?</span>
-                    <button onClick={() => { onDelete(u.id, u.name); setConfirmDelete(false); }} style={{ padding: "8px 12px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: "#dc2626", color: "white" }}>Yes, Delete</button>
-                    <button onClick={() => setConfirmDelete(false)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, cursor: "pointer", fontSize: 11, fontWeight: 600, background: "white", color: "#374151" }}>Cancel</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setConfirmDelete(true)} style={{
-                    padding: "8px 10px", borderRadius: 8, border: `1px solid ${BORDER}`, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                    background: "white", color: "#dc2626",
-                  }}>
-                    🗑️
-                  </button>
-                )
-              )}
+              {!isSelf && (confirmDelete ? (
+                <div className="flex gap-1.5 w-full items-center">
+                  <span className="text-xs text-error font-semibold flex-1">Sure?</span>
+                  <button onClick={() => { onDelete(u.id, u.name); setConfirmDelete(false); }} className="px-3 py-2 rounded-lg text-xs font-bold bg-error text-white">Yes, Delete</button>
+                  <button onClick={() => setConfirmDelete(false)} className="px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-surface-variant text-text-secondary">Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmDelete(true)} className="px-3 py-2 rounded-lg border border-surface-variant bg-surface-container-lowest text-error hover:bg-error-bg transition-colors">
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                </button>
+              ))}
             </div>
 
-            {/* Password reset form */}
             {showReset && (
-              <div style={{ marginTop: 10, padding: "12px", background: "#f8fafc", borderRadius: 9, border: `1px solid ${BORDER}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 8 }}>Set new password (min 6 chars)</div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <input
-                    type="password" value={newPass} onChange={e => setNewPass(e.target.value)}
-                    placeholder="New password…" minLength={6}
-                    style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: `1.5px solid ${BORDER}`, fontSize: 12, outline: "none" }}
-                    onFocus={e => e.target.style.borderColor = NAVY}
-                    onBlur={e => e.target.style.borderColor = BORDER}
+              <div className="mt-3 p-3 bg-surface-container-low rounded-lg border border-surface-variant">
+                <div className="text-xs font-bold text-text-secondary mb-2">Set new password (min 6 chars)</div>
+                <div className="flex gap-1.5">
+                  <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="New password…" minLength={6}
                     onKeyDown={e => e.key === "Enter" && handleReset()}
-                  />
-                  <button onClick={handleReset} disabled={saving || newPass.length < 6} style={{ padding: "7px 12px", borderRadius: 7, border: "none", cursor: newPass.length < 6 ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700, background: NAVY, color: "white", opacity: newPass.length < 6 ? .5 : 1 }}>
+                    className="flex-1 px-3 py-1.5 rounded-lg border border-surface-variant text-sm outline-none focus:border-primary"/>
+                  <button onClick={handleReset} disabled={saving || newPass.length < 6} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-white disabled:opacity-50">
                     {saving ? "…" : "Set"}
                   </button>
                 </div>
@@ -171,9 +113,8 @@ function UserCard({ u, currentUserId, onRoleChange, onToggle, onDelete, onResetP
         )}
       </div>
 
-      {/* Last seen / created */}
-      <div style={{ padding: "8px 18px", borderTop: "1px solid #f8fafc", fontSize: 10, color: "#94a3b8" }}>
-        Added {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+      <div className="px-4 py-2 border-t border-surface-variant bg-surface-container-lowest text-[10px] text-outline italic">
+        Joined: {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
       </div>
     </div>
   );
@@ -185,49 +126,42 @@ function AddUserForm({ onAdd, onClose, saving }) {
   const [showPass, setShowPass] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const valid = form.name.trim() && form.email.trim() && form.password.length >= 6;
+  const inputCls = "w-full px-4 py-2.5 rounded-lg border border-surface-variant text-sm outline-none bg-white focus:border-primary transition-all";
+  const labelCls = "block text-[11px] font-bold text-text-secondary mb-1 uppercase tracking-wider";
 
   return (
-    <div style={{ background: "#f8fafc", border: `1px solid ${BORDER}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>➕ Onboard New Team Member</div>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 18, padding: 2 }}>✕</button>
+    <div className="bg-surface-container-low border border-surface-variant rounded-2xl p-5 mb-5">
+      <div className="flex justify-between items-center mb-4">
+        <div className="text-sm font-bold text-primary flex items-center gap-2">
+          <span className="material-symbols-outlined text-lg">person_add</span> Onboard New Team Member
+        </div>
+        <button onClick={onClose} className="text-outline hover:text-text-primary text-xl leading-none">✕</button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}>
-        {[["Full Name", "name", "text", "e.g. Rahul Sharma"], ["Email Address", "email", "email", "e.g. rahul@ampleleap.com"]].map(([l, k, t, p]) => (
-          <div key={k} style={{ marginBottom: 14 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 4, textTransform: "uppercase", letterSpacing: .5 }}>{l}</label>
-            <input type={t} value={form[k]} onChange={e => set(k, e.target.value)} placeholder={p}
-              style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${BORDER}`, fontSize: 13, boxSizing: "border-box", outline: "none", background: "white" }}
-              onFocus={e => e.target.style.borderColor = NAVY}
-              onBlur={e => e.target.style.borderColor = BORDER} />
-          </div>
-        ))}
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 4, textTransform: "uppercase", letterSpacing: .5 }}>Password</label>
-          <div style={{ position: "relative" }}>
-            <input type={showPass ? "text" : "password"} value={form.password} onChange={e => set("password", e.target.value)} placeholder="Min 6 characters"
-              style={{ width: "100%", padding: "9px 36px 9px 12px", borderRadius: 9, border: `1.5px solid ${BORDER}`, fontSize: 13, boxSizing: "border-box", outline: "none", background: "white" }}
-              onFocus={e => e.target.style.borderColor = NAVY}
-              onBlur={e => e.target.style.borderColor = BORDER} />
-            <button type="button" onClick={() => setShowPass(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 14 }}>
-              {showPass ? "🙈" : "👁"}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+        <div className="mb-3.5"><label className={labelCls}>Full Name</label><input type="text" value={form.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Rahul Sharma" className={inputCls}/></div>
+        <div className="mb-3.5"><label className={labelCls}>Email Address</label><input type="email" value={form.email} onChange={e=>set("email",e.target.value)} placeholder="e.g. rahul@ampleleap.com" className={inputCls}/></div>
+        <div className="mb-3.5">
+          <label className={labelCls}>Password</label>
+          <div className="relative">
+            <input type={showPass ? "text" : "password"} value={form.password} onChange={e => set("password", e.target.value)} placeholder="Min 6 characters" className={`${inputCls} pr-10`}/>
+            <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-outline">
+              <span className="material-symbols-outlined text-lg">{showPass ? "visibility_off" : "visibility"}</span>
             </button>
           </div>
-          {form.password && form.password.length < 6 && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 3 }}>At least 6 characters required</div>}
+          {form.password && form.password.length < 6 && <div className="text-[10px] text-error mt-1">At least 6 characters required</div>}
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 4, textTransform: "uppercase", letterSpacing: .5 }}>Role</label>
-          <select value={form.role} onChange={e => set("role", e.target.value)}
-            style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${BORDER}`, fontSize: 13, outline: "none", background: "white" }}>
-            <option value="admin">🔑 Admin — Full access</option>
-            <option value="recruiter">✏️ Recruiter — Add & Edit</option>
-            <option value="viewer">👁️ Viewer — Read only</option>
+        <div className="mb-3.5">
+          <label className={labelCls}>Role</label>
+          <select value={form.role} onChange={e => set("role", e.target.value)} className={inputCls}>
+            <option value="admin">Admin — Full access</option>
+            <option value="recruiter">Recruiter — Add & Edit</option>
+            <option value="viewer">Viewer — Read only</option>
           </select>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button onClick={onClose} style={{ padding: "9px 18px", background: "white", border: `1.5px solid ${BORDER}`, borderRadius: 9, fontWeight: 600, cursor: "pointer", fontSize: 13, color: "#374151" }}>Cancel</button>
-        <PrimaryButton onClick={() => valid && onAdd(form)} disabled={!valid || saving} style={{ padding: "9px 22px", fontSize: 13 }}>
+      <div className="flex gap-2 justify-end">
+        <button onClick={onClose} className="px-5 py-2.5 bg-white border border-surface-variant rounded-lg font-semibold text-sm text-text-secondary">Cancel</button>
+        <PrimaryButton onClick={() => valid && onAdd(form)} disabled={!valid || saving} className="px-6 py-2.5 text-sm">
           {saving ? "Creating…" : "Create Member"}
         </PrimaryButton>
       </div>
@@ -247,25 +181,22 @@ export default function Masters({ masters, reload, currentUser }) {
   const [savingUser, setSavingUser] = useState(false);
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [newCode, setNewCode] = useState({ code: "", label: "", color: "#3b82f6" });
+  const [newCode, setNewCode] = useState({ code: "", label: "", color: "#001c3e" });
   const [savingCode, setSavingCode] = useState(false);
   const [search, setSearch] = useState("");
 
   const tabs = [
-    { k: "clients",           l: "Clients",        icon: "🏢", desc: "Client company names" },
-    { k: "owners",            l: "Owners",         icon: "👤", desc: "Recruiter/owner names" },
-    { k: "joiningStatus",     l: "Joining Status", icon: "📋", desc: "Joining stage values" },
-    { k: "resignationStatus", l: "Resignation",    icon: "📝", desc: "Resignation status values" },
-    { k: "locations",         l: "Locations",      icon: "📍", desc: "Cities and locations" },
-    { k: "designations",      l: "Designations",   icon: "💼", desc: "Job titles" },
-    { k: "statusCodes",       l: "Status Codes",   icon: "🎨", desc: "Color-coded markers" },
-    { k: "users",             l: "Team Members",   icon: "👥", desc: "User management" },
+    { k: "clients",           l: "Clients",        desc: "Client company names" },
+    { k: "owners",            l: "Owners",         desc: "Recruiter/owner names" },
+    { k: "joiningStatus",     l: "Joining Status", desc: "Joining stage values" },
+    { k: "resignationStatus", l: "Resignation",    desc: "Resignation status values" },
+    { k: "locations",         l: "Locations",      desc: "Cities and locations" },
+    { k: "designations",      l: "Designations",   desc: "Job titles" },
+    { k: "statusCodes",       l: "Status Codes",   desc: "Color-coded markers" },
+    { k: "users",             l: "Team Members",   desc: "User management" },
   ];
 
-  const showMsg = (text, type = "success") => {
-    setMsg({ text, type });
-    setTimeout(() => setMsg({ text: "", type: "success" }), 3000);
-  };
+  const showMsg = (text, type = "success") => { setMsg({ text, type }); setTimeout(() => setMsg({ text: "", type: "success" }), 3000); };
 
   const loadUsers = async () => {
     setLoadingUsers(true);
@@ -276,13 +207,12 @@ export default function Masters({ masters, reload, currentUser }) {
 
   useEffect(() => { if (tab === "users") loadUsers(); }, [tab]);
 
-  // ── Master data actions ──────────────────────────────────────────────────
   const addItem = async () => {
     if (!val.trim()) return;
     setSaving(true);
     const r = await api.addMaster(tab, val.trim());
     if (r.error) showMsg(r.error, "error");
-    else { showMsg(`✅ "${val.trim()}" added!`); setVal(""); reload(); }
+    else { showMsg(`"${val.trim()}" added!`); setVal(""); reload(); }
     setSaving(false);
   };
 
@@ -290,23 +220,22 @@ export default function Masters({ masters, reload, currentUser }) {
     if (!window.confirm(`Delete "${value}" from the list?`)) return;
     const r = await api.deleteMaster(id);
     if (r.error) showMsg(r.error, "error");
-    else { showMsg(`🗑️ "${value}" removed`); reload(); }
+    else { showMsg(`"${value}" removed`); reload(); }
   };
 
   const saveEdit = async id => {
     if (!editVal.trim()) return;
     const r = await api.updateMaster(id, editVal);
     if (r.error) showMsg(r.error, "error");
-    else { showMsg("✅ Updated!"); setEditId(null); reload(); }
+    else { showMsg("Updated!"); setEditId(null); reload(); }
   };
 
-  // ── Status code actions ──────────────────────────────────────────────────
   const addStatusCode = async () => {
     if (!newCode.code || !newCode.label || !newCode.color) { showMsg("All fields required", "error"); return; }
     setSavingCode(true);
     const r = await api.addStatusCode(newCode);
     if (r.error) showMsg(r.error, "error");
-    else { showMsg(`✅ Code "${newCode.code}" saved!`); setNewCode({ code: "", label: "", color: "#3b82f6" }); reload(); }
+    else { showMsg(`Code "${newCode.code}" saved!`); setNewCode({ code: "", label: "", color: "#001c3e" }); reload(); }
     setSavingCode(false);
   };
 
@@ -314,29 +243,28 @@ export default function Masters({ masters, reload, currentUser }) {
     if (!window.confirm(`Delete status code "${code}"?`)) return;
     const r = await api.deleteStatusCode(code);
     if (r.error) showMsg(r.error, "error");
-    else { showMsg(`🗑️ "${code}" deleted!`); reload(); }
+    else { showMsg(`"${code}" deleted!`); reload(); }
   };
 
-  // ── User actions ─────────────────────────────────────────────────────────
   const addUser = async form => {
     setSavingUser(true);
     const r = await api.createUser(form);
     if (r.error) showMsg(r.error, "error");
-    else { showMsg(`✅ ${r.name} added to team!`); setShowAddUser(false); loadUsers(); }
+    else { showMsg(`${r.name} added to team!`); setShowAddUser(false); loadUsers(); }
     setSavingUser(false);
   };
 
   const changeRole = async (id, role, name) => {
     const r = await api.updateUser(id, { role });
     if (r.error) showMsg(r.error, "error");
-    else { showMsg(`✅ ${name} is now ${role}`); loadUsers(); }
+    else { showMsg(`${name} is now ${role}`); loadUsers(); }
   };
 
   const deleteUser = async (id, name) => {
     const r = await api.deleteUser(id);
     if (r.error) { showMsg(r.error, "error"); return; }
     setUsers(prev => prev.filter(u => u.id !== id));
-    showMsg(`🗑️ "${name}" permanently deleted from team`);
+    showMsg(`"${name}" permanently deleted from team`);
   };
 
   const toggleUser = async (id, active, name) => {
@@ -344,129 +272,118 @@ export default function Masters({ masters, reload, currentUser }) {
     if (!window.confirm(`${action} "${name}"?`)) return;
     const r = await api.updateUser(id, { active: !active });
     if (r.error) { showMsg(r.error, "error"); return; }
-    if (active) {
-      setUsers(prev => prev.filter(u => u.id !== id));
-      showMsg(`✅ "${name}" deactivated and removed from list`);
-    } else {
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, active: true } : u));
-      showMsg(`✅ "${name}" activated!`);
-    }
+    if (active) { setUsers(prev => prev.filter(u => u.id !== id)); showMsg(`"${name}" deactivated and removed from list`); }
+    else { setUsers(prev => prev.map(u => u.id === id ? { ...u, active: true } : u)); showMsg(`"${name}" activated!`); }
   };
 
   const resetPassword = async (id, password) => {
     const r = await api.updateUser(id, { password });
-    if (r.error) showMsg(r.error, "error");
-    else showMsg("🔑 Password updated!");
+    if (r.error) showMsg(r.error, "error"); else showMsg("Password updated!");
   };
 
   const currentTab = tabs.find(t => t.k === tab);
-  const fullItems = (masters._full?.[tab] || []).filter(item =>
-    !search || item.value.toLowerCase().includes(search.toLowerCase())
-  );
+  const fullItems = (masters._full?.[tab] || []).filter(item => !search || item.value.toLowerCase().includes(search.toLowerCase()));
   const activeUsers = users.filter(u => u.active).length;
   const inactiveUsers = users.filter(u => !u.active).length;
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-low focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm transition-all";
 
   return (
-    <div>
+    <div className="max-w-[1440px] mx-auto">
       {/* Header */}
-      <div style={{ background: NAVY, borderRadius: 16, padding: "22px 26px", marginBottom: 18, boxShadow: "0 8px 24px rgba(0,49,99,.25)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 12, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>⚙️</div>
-          <div>
-            <h2 style={{ fontSize: 19, fontWeight: 800, color: "white", margin: 0, letterSpacing: -.2 }}>Master Data Engine</h2>
-            <p style={{ color: NAVY_LIGHT, margin: "2px 0 0", fontSize: 12, fontWeight: 500 }}>Configuration portal for candidate dropdowns and team access</p>
+      <header className="bg-primary shadow-xl rounded-2xl p-8 mb-8 flex items-center justify-between overflow-hidden relative">
+        <div className="relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center">
+              <span className="material-symbols-outlined text-3xl text-white">settings</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white tracking-tight">Master Data Engine</h1>
+              <p className="text-primary-fixed text-sm font-medium mt-1">Configuration portal for candidate dropdowns and team access</p>
+            </div>
           </div>
         </div>
-      </div>
+        <div className="absolute right-[-20px] top-[-20px] opacity-10">
+          <span className="material-symbols-outlined text-[180px] text-white">settings</span>
+        </div>
+      </header>
 
       {msg.text && (
-        <div style={{ background: msg.type === "error" ? "#fee2e2" : "#dcfce7", color: msg.type === "error" ? "#991b1b" : "#166534", padding: "12px 18px", borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, border: `1px solid ${msg.type === "error" ? "#fecaca" : "#bbf7d0"}` }}>
-          {msg.text}
-        </div>
+        <div className={`px-5 py-3 rounded-lg mb-4 text-sm font-semibold ${msg.type==="error"?"bg-error-bg text-error":"bg-green-100 text-green-700"}`}>{msg.text}</div>
       )}
 
-      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-        {/* Sidebar */}
-        <div style={{ width: 220, flexShrink: 0 }}>
-          <div style={{ background: "white", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: `1px solid #f1f5f9` }}>
-            <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #f1f5f9", fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: 1 }}>
-              Data Categories
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* Sidebar Navigation */}
+        <aside className="w-full lg:w-64 shrink-0">
+          <div className="bg-surface-container-lowest rounded-2xl border border-surface-variant overflow-hidden shadow-sm">
+            <div className="p-4 bg-surface-container-low border-b border-surface-variant text-[11px] font-bold text-outline uppercase tracking-widest">
+              Settings Navigation
             </div>
-            {tabs.map((t, i) => (
-              <button key={t.k} onClick={() => { setTab(t.k); setSearch(""); }}
-                style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
-                  border: "none", borderLeft: `4px solid ${tab === t.k ? NAVY : "transparent"}`,
-                  background: tab === t.k ? NAVY_TINT : "white",
-                  cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-                  borderBottom: i < tabs.length - 1 ? "1px solid #f8fafc" : "none",
-                  transition: "all .15s",
-                }}>
-                <span style={{ fontSize: 16, flexShrink: 0 }}>{t.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: tab === t.k ? 700 : 500, color: tab === t.k ? NAVY : "#374151" }}>{t.l}</div>
-                  <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 1 }}>
-                    {t.k === "users" ? `${activeUsers} active` : `${(masters._full?.[t.k] || []).length} items`}
+            <nav>
+              {tabs.map(t => (
+                <button key={t.k} onClick={() => { setTab(t.k); setSearch(""); }}
+                  className={`w-full flex items-center gap-4 px-5 py-4 text-left transition-all relative ${tab===t.k ? "bg-primary-fixed text-primary" : "text-text-secondary hover:bg-surface-container hover:text-text-primary"}`}>
+                  {tab===t.k && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary rounded-r-full"></div>}
+                  <span className="material-symbols-outlined text-xl">{TAB_ICONS[t.k]}</span>
+                  <div className="flex-1 overflow-hidden">
+                    <div className={`text-sm ${tab===t.k ? "font-bold" : "font-semibold"}`}>{t.l}</div>
+                    <div className="text-[10px] opacity-60 truncate">
+                      {t.k === "users" ? `${activeUsers} active` : `${(masters._full?.[t.k] || []).length} items`}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
+            </nav>
           </div>
-
-          {/* System status footer */}
-          <div style={{ marginTop: 14, padding: 14, background: NAVY_TINT, borderRadius: 12, border: `1px solid rgba(0,49,99,.1)` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: NAVY, marginBottom: 7 }}>System Status</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, color: "#64748b" }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
-              Synchronized with CRM
+          <div className="mt-6 p-5 bg-primary-container/5 border border-primary-container/10 rounded-2xl">
+            <div className="text-xs font-bold text-primary flex items-center gap-2 mb-2">
+              <span className="material-symbols-outlined text-sm">cloud_sync</span> System Status
+            </div>
+            <div className="flex items-center gap-2 text-xs text-text-secondary">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Live &amp; Synchronized
             </div>
           </div>
-        </div>
+        </aside>
 
-        {/* Content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-
+        {/* Content Area */}
+        <main className="flex-1 min-w-0 w-full">
           {/* ── STATUS CODES ── */}
           {tab === "statusCodes" && (
             <div>
-              <div style={{ background: "white", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: `1px solid #f1f5f9`, marginBottom: 16 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 800, color: NAVY, margin: "0 0 16px", display: "flex", alignItems: "center", gap: 8 }}>🎨 Add / Edit Status Code</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto auto", gap: 10, alignItems: "flex-end" }}>
+              <div className="bg-surface-container-lowest border border-surface-variant rounded-2xl p-8 mb-8 shadow-sm">
+                <h3 className="text-lg font-bold text-primary flex items-center gap-3 mb-6">
+                  <span className="material-symbols-outlined">palette</span> Add/Edit Status Code
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-end">
                   <div>
-                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 4, textTransform: "uppercase", letterSpacing: .6 }}>Code Name</label>
-                    <input value={newCode.code} onChange={e => setNewCode(n => ({ ...n, code: e.target.value }))} placeholder="e.g. Purple"
-                      style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${BORDER}`, fontSize: 13, outline: "none", boxSizing: "border-box", background: "#fafafa" }}
-                      onFocus={e => e.target.style.borderColor = NAVY} onBlur={e => e.target.style.borderColor = BORDER} />
+                    <label className="block text-[11px] font-bold text-outline uppercase tracking-wider mb-2">Code Name</label>
+                    <input value={newCode.code} onChange={e => setNewCode(n => ({ ...n, code: e.target.value }))} placeholder="e.g. Hot" className={inputCls}/>
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 4, textTransform: "uppercase", letterSpacing: .6 }}>Description</label>
-                    <input value={newCode.label} onChange={e => setNewCode(n => ({ ...n, label: e.target.value }))} placeholder="e.g. High priority follow-up"
-                      style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${BORDER}`, fontSize: 13, outline: "none", boxSizing: "border-box", background: "#fafafa" }}
-                      onFocus={e => e.target.style.borderColor = NAVY} onBlur={e => e.target.style.borderColor = BORDER} />
+                    <label className="block text-[11px] font-bold text-outline uppercase tracking-wider mb-2">Description</label>
+                    <input value={newCode.label} onChange={e => setNewCode(n => ({ ...n, label: e.target.value }))} placeholder="e.g. High priority" className={inputCls}/>
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 4, textTransform: "uppercase", letterSpacing: .6 }}>Color</label>
-                    <input type="color" value={newCode.color} onChange={e => setNewCode(n => ({ ...n, color: e.target.value }))}
-                      style={{ width: 44, height: 40, borderRadius: 9, border: `1.5px solid ${BORDER}`, cursor: "pointer", padding: 3 }} />
+                    <label className="block text-[11px] font-bold text-outline uppercase tracking-wider mb-2">Marker Color</label>
+                    <input type="color" value={newCode.color} onChange={e => setNewCode(n => ({ ...n, color: e.target.value }))} className="w-full h-11 rounded-xl border border-outline-variant p-1 cursor-pointer bg-white"/>
                   </div>
-                  <PrimaryButton onClick={addStatusCode} disabled={savingCode} style={{ padding: "9px 18px", fontSize: 12, whiteSpace: "nowrap" }}>
-                    {savingCode ? "Saving…" : "💾 Save"}
+                  <PrimaryButton onClick={addStatusCode} disabled={savingCode} className="py-3 px-6">
+                    <span className="material-symbols-outlined text-sm">save</span> {savingCode ? "Saving…" : "Save Code"}
                   </PrimaryButton>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {(masters.statusCodes || []).map(s => (
-                  <div key={s.code} style={{ background: "white", borderRadius: 12, padding: "16px 18px", border: `2px solid ${s.color}44`, display: "flex", alignItems: "center", justifyContent: "space-between", transition: "box-shadow .2s" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 4px 12px ${s.color}44` }}>
-                        <span style={{ color: "white", fontWeight: 900, fontSize: 16 }}>{s.code[0]}</span>
+                  <div key={s.code} className="bg-white rounded-xl p-4 border-2 flex items-center justify-between" style={{ borderColor: s.color + "44" }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: s.color, boxShadow: `0 4px 12px ${s.color}44` }}>
+                        <span className="text-white font-black text-base">{s.code[0]}</span>
                       </div>
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: 14, color: s.color }}>{s.code}</div>
-                        <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{s.label}</div>
+                        <div className="font-extrabold text-sm" style={{ color: s.color }}>{s.code}</div>
+                        <div className="text-[11px] text-text-tertiary mt-0.5">{s.label}</div>
                       </div>
                     </div>
-                    <button onClick={() => deleteStatusCode(s.code)} style={{ padding: "5px 12px", background: "white", color: "#dc2626", borderRadius: 7, fontSize: 11, fontWeight: 700, border: "1px solid #fecaca", cursor: "pointer" }}>🗑️ Delete</button>
+                    <button onClick={() => deleteStatusCode(s.code)} className="px-3 py-1.5 bg-white text-error rounded-lg text-[11px] font-bold border border-red-200">Delete</button>
                   </div>
                 ))}
               </div>
@@ -476,45 +393,36 @@ export default function Masters({ masters, reload, currentUser }) {
           {/* ── TEAM MEMBERS ── */}
           {tab === "users" && (
             <div>
-              {/* Stats bar */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 16 }}>
+              <div className="grid grid-cols-3 gap-3 mb-6">
                 {[
-                  { l: "Total Members", v: users.length, c: NAVY, bg: NAVY_TINT },
-                  { l: "Active", v: activeUsers, c: "#16a34a", bg: "#f0fdf4" },
-                  { l: "Inactive", v: inactiveUsers, c: "#dc2626", bg: "#fef2f2" },
+                  { l: "Total Members", v: users.length, c: "text-primary", bg: "bg-primary/5" },
+                  { l: "Active", v: activeUsers, c: "text-green-600", bg: "bg-green-50" },
+                  { l: "Inactive", v: inactiveUsers, c: "text-error", bg: "bg-error-bg" },
                 ].map(s => (
-                  <div key={s.l} style={{ background: "white", borderRadius: 12, padding: "14px 16px", border: `1px solid #f1f5f9`, display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 9, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: s.c, flexShrink: 0 }}>{s.v}</div>
-                    <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>{s.l}</div>
+                  <div key={s.l} className="bg-white rounded-xl p-3.5 border border-surface-variant flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-lg ${s.bg} flex items-center justify-center text-base font-extrabold ${s.c} shrink-0`}>{s.v}</div>
+                    <div className="text-[11px] text-text-secondary font-medium">{s.l}</div>
                   </div>
                 ))}
               </div>
 
-              {/* Add user form */}
               {showAddUser ? (
                 <AddUserForm onAdd={addUser} onClose={() => setShowAddUser(false)} saving={savingUser} />
               ) : (
-                <PrimaryButton onClick={() => setShowAddUser(true)} style={{ width: "100%", padding: "12px", fontSize: 13, marginBottom: 16 }}>
-                  ➕ Onboard New Team Member
-                </PrimaryButton>
+                <button onClick={() => setShowAddUser(true)} className="bg-secondary text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-accent-hover transition-all shadow-md w-full mb-6">
+                  <span className="material-symbols-outlined">person_add</span> Onboard New Member
+                </button>
               )}
 
-              {/* User cards */}
               {loadingUsers ? (
-                <div style={{ padding: 40, textAlign: "center" }}><Spin /></div>
+                <div className="p-10 text-center"><Spin/></div>
               ) : users.length === 0 ? (
-                <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>No team members yet. Add your first one above.</div>
+                <div className="p-10 text-center text-text-tertiary">No team members yet. Add your first one above.</div>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 14 }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {users.map(u => (
-                    <UserCard
-                      key={u.id} u={u}
-                      currentUserId={currentUser?.id}
-                      onRoleChange={changeRole}
-                      onToggle={toggleUser}
-                      onDelete={deleteUser}
-                      onResetPassword={resetPassword}
-                    />
+                    <UserCard key={u.id} u={u} currentUserId={currentUser?.id}
+                      onRoleChange={changeRole} onToggle={toggleUser} onDelete={deleteUser} onResetPassword={resetPassword}/>
                   ))}
                 </div>
               )}
@@ -524,60 +432,64 @@ export default function Masters({ masters, reload, currentUser }) {
           {/* ── REGULAR LIST TABS ── */}
           {tab !== "statusCodes" && tab !== "users" && (
             <div>
-              <div style={{ background: "white", borderRadius: 14, padding: 22, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: `1px solid #f1f5f9`, marginBottom: 14 }}>
-                <div style={{ marginBottom: 14 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 800, color: NAVY, margin: "0 0 2px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <span>{currentTab?.icon}</span> {currentTab?.l}
-                    <span style={{ background: NAVY_TINT, color: NAVY, borderRadius: 20, padding: "1px 10px", fontSize: 11, fontWeight: 700 }}>{(masters._full?.[tab] || []).length}</span>
-                  </h3>
-                  <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>{currentTab?.desc} — used in candidate dropdowns</p>
+              <div className="bg-surface-container-lowest border border-surface-variant rounded-2xl p-8 mb-6 shadow-sm">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                  <div>
+                    <h3 className="text-xl font-bold text-primary flex items-center gap-3">
+                      <span className="material-symbols-outlined text-3xl text-primary-container">{TAB_ICONS[tab]}</span> {currentTab?.l}
+                      <span className="bg-primary-fixed text-primary px-3 py-0.5 rounded-full text-xs font-bold">{(masters._full?.[tab] || []).length} Total</span>
+                    </h3>
+                    <p className="text-text-secondary text-sm font-medium mt-1">{currentTab?.desc} — used in candidate dropdowns</p>
+                  </div>
+                  {(masters._full?.[tab] || []).length > 5 && (
+                    <div className="relative w-full md:w-64">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
+                      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search items..." className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm transition-all"/>
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                  <input
-                    value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()}
-                    placeholder={`Add new ${currentTab?.l?.toLowerCase()?.replace(/s$/, "") || "item"}… (press Enter)`}
-                    style={{ flex: 1, padding: "9px 14px", borderRadius: 10, border: `1.5px solid ${BORDER}`, fontSize: 13, outline: "none", background: "#fafafa", transition: "border .2s" }}
-                    onFocus={e => e.target.style.borderColor = NAVY} onBlur={e => e.target.style.borderColor = BORDER} />
-                  <PrimaryButton onClick={addItem} disabled={saving || !val.trim()} style={{ padding: "9px 20px", fontSize: 13 }}>
-                    {saving ? "Adding…" : "+ Add Item"}
+                <div className="flex gap-3 p-1.5 bg-surface-container-low rounded-2xl border border-surface-variant">
+                  <input value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()}
+                    placeholder={`Add new ${currentTab?.l?.toLowerCase()?.replace(/s$/, "") || "item"}…`}
+                    className="flex-1 px-5 py-3 rounded-xl border-none bg-transparent text-sm font-semibold focus:outline-none"/>
+                  <PrimaryButton onClick={addItem} disabled={saving || !val.trim()} className="px-8 py-3">
+                    <span className="material-symbols-outlined text-sm">add</span> {saving ? "Adding…" : "Add"}
                   </PrimaryButton>
                 </div>
-                {(masters._full?.[tab] || []).length > 5 && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", borderRadius: 9, padding: "8px 12px", border: `1.5px solid ${BORDER}` }}>
-                    <span style={{ fontSize: 13, color: "#94a3b8" }}>🔍</span>
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${currentTab?.l?.toLowerCase()}…`}
-                      style={{ border: "none", background: "none", outline: "none", fontSize: 12, flex: 1, color: "#374151" }} />
-                    {search && <button onClick={() => setSearch("")} style={{ border: "none", background: "none", cursor: "pointer", color: "#94a3b8", fontSize: 14, padding: 0 }}>✕</button>}
-                  </div>
-                )}
               </div>
 
-              <div style={{ background: "white", borderRadius: 14, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: `1px solid #f1f5f9`, overflow: "hidden" }}>
+              <div className="border border-surface-variant rounded-2xl shadow-sm divide-y divide-surface-variant overflow-hidden bg-white">
                 {fullItems.length === 0 ? (
-                  <div style={{ padding: 50, textAlign: "center" }}>
-                    <div style={{ fontSize: 36, marginBottom: 10 }}>{currentTab?.icon}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>{search ? "No results" : `No ${currentTab?.l?.toLowerCase()} yet`}</div>
-                    <div style={{ fontSize: 12, color: "#94a3b8" }}>{search ? "Try a different search" : "Add your first item above"}</div>
+                  <div className="p-12 text-center">
+                    <span className="material-symbols-outlined text-4xl text-outline-variant">{TAB_ICONS[tab]}</span>
+                    <div className="text-sm font-bold text-text-primary mt-2">{search ? "No results" : `No ${currentTab?.l?.toLowerCase()} yet`}</div>
+                    <div className="text-xs text-text-tertiary mt-1">{search ? "Try a different search" : "Add your first item above"}</div>
                   </div>
-                ) : fullItems.map((item, i) => (
-                  <div key={item.id}
-                    style={{ display: "flex", alignItems: "center", padding: "11px 18px", background: i % 2 ? "#fcfcfd" : "white", borderBottom: "1px solid #f8fafc", transition: "background .1s", gap: 10 }}
-                    onMouseEnter={e => e.currentTarget.style.background = NAVY_TINT}
-                    onMouseLeave={e => e.currentTarget.style.background = i % 2 ? "#fcfcfd" : "white"}>
+                ) : fullItems.map(item => (
+                  <div key={item.id} className="p-4 flex items-center justify-between hover:bg-surface-container transition-colors group gap-3">
                     {editId === item.id ? (
                       <>
-                        <input value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveEdit(item.id); if (e.key === "Escape") setEditId(null); }} autoFocus
-                          style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: `1.5px solid ${NAVY}`, fontSize: 13, outline: "none", background: NAVY_TINT }} />
-                        <button onClick={() => saveEdit(item.id)} style={{ padding: "6px 14px", background: NAVY, color: "white", borderRadius: 8, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>Save</button>
-                        <button onClick={() => setEditId(null)} style={{ padding: "6px 12px", background: "#f1f5f9", color: "#374151", borderRadius: 8, fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Cancel</button>
+                        <input value={editVal} onChange={e => setEditVal(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") saveEdit(item.id); if (e.key === "Escape") setEditId(null); }} autoFocus
+                          className="flex-1 px-3 py-1.5 rounded-lg border border-primary bg-primary/5 text-sm outline-none"/>
+                        <button onClick={() => saveEdit(item.id)} className="px-3.5 py-1.5 bg-primary text-white rounded-lg text-xs font-bold">Save</button>
+                        <button onClick={() => setEditId(null)} className="px-3 py-1.5 bg-surface-container text-text-secondary rounded-lg text-xs font-semibold">Cancel</button>
                       </>
                     ) : (
                       <>
-                        <div style={{ width: 28, height: 28, borderRadius: 7, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0, color: NAVY }}>{currentTab?.icon}</div>
-                        <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 500, flex: 1 }}>{item.value}</span>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => { setEditId(item.id); setEditVal(item.value); }} style={{ padding: "5px 12px", background: NAVY_TINT, color: NAVY, borderRadius: 7, fontSize: 11, fontWeight: 700, border: `1px solid rgba(0,49,99,.2)`, cursor: "pointer" }}>✏️ Edit</button>
-                          <button onClick={() => deleteItem(item.id, item.value)} style={{ padding: "5px 12px", background: "white", color: "#dc2626", borderRadius: 7, fontSize: 11, fontWeight: 700, border: "1px solid #fecaca", cursor: "pointer" }}>🗑️ Delete</button>
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="w-10 h-10 rounded-lg bg-primary-fixed/30 flex items-center justify-center text-primary shrink-0">
+                            <span className="material-symbols-outlined text-xl">{TAB_ICONS[tab]}</span>
+                          </div>
+                          <span className="font-semibold text-text-primary text-sm">{item.value}</span>
+                        </div>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => { setEditId(item.id); setEditVal(item.value); }} className="p-2 text-primary hover:bg-primary-fixed rounded-lg transition-all">
+                            <span className="material-symbols-outlined text-lg">edit</span>
+                          </button>
+                          <button onClick={() => deleteItem(item.id, item.value)} className="p-2 text-error hover:bg-error-bg rounded-lg transition-all">
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </button>
                         </div>
                       </>
                     )}
@@ -586,9 +498,8 @@ export default function Masters({ masters, reload, currentUser }) {
               </div>
             </div>
           )}
-        </div>
+        </main>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

@@ -1,18 +1,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../api";
 import { fmtD, daysUntil } from "../utils/constants";
-import { Spin, Modal, Icon, ContactButtons } from "../components/UI";
+import { Modal, ContactButtons } from "../components/UI";
 
 // ─── AGREEMENT STATUS BADGE ───────────────────────────────────────────────────
 function AgreementBadge({ endDate }) {
-  if (!endDate) return <span style={{color:"#94a3b8",fontSize:11,background:"#f8fafc",padding:"3px 8px",borderRadius:7,border:"1px solid #e2e8f0",fontWeight:600}}>No date set</span>;
+  if (!endDate) return <span className="text-outline text-[11px] bg-surface px-2 py-1 rounded-md border border-outline-variant font-semibold whitespace-nowrap">No date set</span>;
   const days = daysUntil(endDate);
-  let style;
-  if (days < 0) style = {bg:"#fee2e2",c:"#dc2626",label:`Expired ${Math.abs(days)}d ago`,icon:"⛔"};
-  else if (days <= 30) style = {bg:"#fef9c3",c:"#92400e",label:`${days}d left`,icon:"⏳"};
-  else style = {bg:"#dcfce7",c:"#16a34a",label:`${days}d left`,icon:"✅"};
-  return <span style={{background:style.bg,color:style.c,padding:"3px 8px",borderRadius:7,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{style.icon} {style.label}</span>;
+  let cls, icon, label;
+  if (days < 0) { cls = "bg-error-bg text-error"; icon = "block"; label = `Expired ${Math.abs(days)}d ago`; }
+  else if (days <= 30) { cls = "bg-amber-100 text-amber-800"; icon = "schedule"; label = `${days}d left`; }
+  else { cls = "bg-green-100 text-green-700"; icon = "check_circle"; label = `${days}d left`; }
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold whitespace-nowrap ${cls}`}>
+      <span className="material-symbols-outlined text-[14px]">{icon}</span>{label}
+    </span>
+  );
 }
+
+const fieldCls = "w-full px-4 py-2.5 rounded-lg border border-outline-variant focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none text-sm font-medium bg-white transition-all";
+const labelCls = "block text-[10px] font-black text-text-secondary uppercase tracking-widest mb-1.5";
 
 // ─── COMPANY FORM ─────────────────────────────────────────────────────────────
 function CompanyForm({ initial, onSave, onCancel, saving }) {
@@ -27,35 +34,30 @@ function CompanyForm({ initial, onSave, onCancel, saving }) {
   } : blank);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
-  const F=(l,k,t="text",p="")=>(
-    <div style={{marginBottom:16}}>
-      <label style={{display:"block",fontSize:11,fontWeight:700,color:"#64748b",marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>{l}</label>
-      <input type={t} value={form[k]||""} onChange={e=>set(k,e.target.value)} placeholder={p}
-        style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e2e8f0",fontSize:13,boxSizing:"border-box",outline:"none",transition:"border .2s",background:"#fafafa"}}
-        onFocus={e=>e.target.style.borderColor="#2563eb"}
-        onBlur={e=>e.target.style.borderColor="#e2e8f0"}/>
+  const F = (l,k,t="text",p="") => (
+    <div className="space-y-1.5 mb-4">
+      <label className={labelCls}>{l}</label>
+      <input type={t} value={form[k]||""} onChange={e=>set(k,e.target.value)} placeholder={p} className={fieldCls}/>
     </div>
   );
-  const S=(l,k,opts)=>(
-    <div style={{marginBottom:16}}>
-      <label style={{display:"block",fontSize:11,fontWeight:700,color:"#64748b",marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>{l}</label>
-      <select value={form[k]||""} onChange={e=>set(k,e.target.value)}
-        style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e2e8f0",fontSize:13,boxSizing:"border-box",outline:"none",background:"#fafafa"}}>
+  const S = (l,k,opts) => (
+    <div className="space-y-1.5 mb-4">
+      <label className={labelCls}>{l}</label>
+      <select value={form[k]||""} onChange={e=>set(k,e.target.value)} className={fieldCls}>
         {opts.map(o=><option key={o} value={o}>{o}</option>)}
       </select>
     </div>
   );
 
-  // Live preview of agreement countdown while editing
   const previewDays = form.agreementEndDate ? daysUntil(form.agreementEndDate) : null;
 
   return (
     <div>
-      <div style={{background:"linear-gradient(135deg,#f0f9ff,#eff6ff)",borderRadius:12,padding:16,marginBottom:20,border:"1px solid #bfdbfe"}}>
-        <div style={{fontSize:13,fontWeight:700,color:"#1d4ed8",marginBottom:2}}>📋 Company Contact Details</div>
-        <div style={{fontSize:12,color:"#64748b"}}>Fill in all fields. Agreement PDF link can be added anytime after uploading to Google Drive.</div>
+      <div className="bg-surface rounded-xl p-5 mb-6 border-l-4 border-primary">
+        <div className="text-sm font-bold text-primary mb-1">📋 Company Contact Details</div>
+        <div className="text-xs text-text-tertiary">Fill in all fields. Agreement PDF link can be added anytime after uploading to Google Drive.</div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
         {F("🏢 Company Name","companyName","text","e.g. Alicon Group")}
         {F("👤 SPOC (Our Owner)","spoc","text","e.g. Yogita, Sameer")}
         {F("🙍 Contact Person Name","contactName","text","e.g. Rahul Sharma")}
@@ -68,43 +70,38 @@ function CompanyForm({ initial, onSave, onCancel, saving }) {
         {F("🔗 Agreement PDF URL","agreementUrl","url","https://drive.google.com/...")}
       </div>
 
-      {/* Agreement dates section */}
-      <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:12,padding:16,marginBottom:16}}>
-        <div style={{fontSize:12,fontWeight:700,color:"#92400e",marginBottom:12,display:"flex",alignItems:"center",gap:6}}>📅 Agreement Validity Period</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
-          <div style={{marginBottom:0}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:"#92400e",marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>Start Date</label>
-            <input type="date" value={form.agreementStartDate||""} onChange={e=>set("agreementStartDate",e.target.value)}
-              style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #fde68a",fontSize:13,boxSizing:"border-box",outline:"none",background:"white"}}/>
+      <div className="bg-secondary-fixed border border-orange-200 rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 text-xs font-bold text-on-secondary-fixed mb-4 uppercase tracking-wider">
+          <span className="material-symbols-outlined text-lg">calendar_today</span> Agreement Validity Period
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-on-secondary-fixed uppercase tracking-widest">Start Date</label>
+            <input type="date" value={form.agreementStartDate||""} onChange={e=>set("agreementStartDate",e.target.value)} className="w-full px-4 py-2 bg-white border border-orange-200 rounded-lg text-sm"/>
           </div>
-          <div style={{marginBottom:0}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:"#92400e",marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>End Date</label>
-            <input type="date" value={form.agreementEndDate||""} onChange={e=>set("agreementEndDate",e.target.value)}
-              style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #fde68a",fontSize:13,boxSizing:"border-box",outline:"none",background:"white"}}/>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-on-secondary-fixed uppercase tracking-widest">End Date</label>
+            <input type="date" value={form.agreementEndDate||""} onChange={e=>set("agreementEndDate",e.target.value)} className="w-full px-4 py-2 bg-white border border-orange-200 rounded-lg text-sm"/>
           </div>
         </div>
         {previewDays !== null && (
-          <div style={{marginTop:10,fontSize:12,fontWeight:600,color: previewDays<0 ? "#dc2626" : previewDays<=30 ? "#92400e" : "#16a34a"}}>
+          <div className={`mt-3 text-xs font-semibold ${previewDays<0?"text-error":previewDays<=30?"text-on-secondary-fixed":"text-green-700"}`}>
             {previewDays < 0 ? `⛔ This agreement expired ${Math.abs(previewDays)} days ago` : previewDays <= 30 ? `⏳ Expires in ${previewDays} days — will trigger renewal alert` : `✅ Valid for ${previewDays} more days`}
           </div>
         )}
       </div>
 
-      <div style={{marginBottom:16}}>
-        <label style={{display:"block",fontSize:11,fontWeight:700,color:"#64748b",marginBottom:5,textTransform:"uppercase",letterSpacing:.6}}>📍 Office Address</label>
-        <textarea value={form.address||""} onChange={e=>set("address",e.target.value)} rows={3} placeholder="Full office address with pincode…"
-          style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e2e8f0",fontSize:13,boxSizing:"border-box",outline:"none",resize:"vertical",background:"#fafafa"}}
-          onFocus={e=>e.target.style.borderColor="#2563eb"}
-          onBlur={e=>e.target.style.borderColor="#e2e8f0"}/>
+      <div className="mb-4">
+        <label className={labelCls}>📍 Office Address</label>
+        <textarea value={form.address||""} onChange={e=>set("address",e.target.value)} rows={3} placeholder="Full office address with pincode…" className={`${fieldCls} resize-y`}/>
       </div>
-      <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"10px 14px",marginBottom:20,fontSize:12,color:"#16a34a",display:"flex",alignItems:"center",gap:8}}>
+      <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 mb-6 text-xs text-green-700 flex items-center gap-2">
         💡 <span><strong>Agreement PDF:</strong> Upload to Google Drive → Right-click → Share → Anyone with link → Copy link → Paste above.</span>
       </div>
-      <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-        <button onClick={onCancel} style={{padding:"10px 20px",background:"white",border:"1.5px solid #e2e8f0",borderRadius:10,fontWeight:600,cursor:"pointer",fontSize:13,color:"#374151"}}>Cancel</button>
-        <button onClick={()=>onSave(form)} disabled={saving}
-          style={{padding:"10px 24px",background:"linear-gradient(135deg,#2563eb,#7c3aed)",color:"white",border:"none",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13,opacity:saving?.7:1,boxShadow:"0 4px 12px rgba(37,99,235,.3)"}}>
-          {saving?"Saving…":"Save Company Contact"}
+      <div className="flex justify-end gap-3">
+        <button onClick={onCancel} className="px-6 py-2.5 border-2 border-outline-variant text-text-primary rounded-lg font-bold text-sm hover:bg-surface transition-all">Cancel</button>
+        <button onClick={()=>onSave(form)} disabled={saving} className="px-8 py-2.5 bg-secondary text-white rounded-lg font-black text-sm shadow-xl shadow-secondary/20 hover:scale-[1.02] transition-all disabled:opacity-70">
+          {saving?"Saving…":"Save Contact"}
         </button>
       </div>
     </div>
@@ -115,49 +112,45 @@ function CompanyForm({ initial, onSave, onCancel, saving }) {
 function ViewCompany({ c }) {
   if (!c) return null;
   const StatusBadge = ({v,label}) => {
-    const s = v==="YES"?{bg:"#dcfce7",c:"#16a34a",icon:"✅"} : v==="Pending"?{bg:"#fef9c3",c:"#92400e",icon:"⏳"} : {bg:"#fee2e2",c:"#dc2626",icon:"❌"};
-    return <div style={{background:s.bg,border:`1px solid ${s.c}33`,borderRadius:10,padding:"10px 16px",textAlign:"center"}}>
-      <div style={{fontSize:18,marginBottom:4}}>{s.icon}</div>
-      <div style={{fontSize:11,fontWeight:700,color:s.c}}>{label}</div>
-      <div style={{fontSize:13,fontWeight:800,color:s.c,marginTop:2}}>{v||"NO"}</div>
-    </div>;
+    const s = v==="YES" ? { bg:"bg-green-50", c:"text-green-600", icon:"check_circle" } : v==="Pending" ? { bg:"bg-amber-50", c:"text-amber-800", icon:"schedule" } : { bg:"bg-red-50", c:"text-error", icon:"cancel" };
+    return (
+      <div className={`${s.bg} border border-current/10 rounded-lg p-3 text-center`}>
+        <span className={`material-symbols-outlined ${s.c} text-xl mb-1`}>{s.icon}</span>
+        <div className={`text-[11px] font-bold ${s.c}`}>{label}</div>
+        <div className={`text-sm font-black ${s.c} mt-0.5`}>{v||"NO"}</div>
+      </div>
+    );
   };
-  const R=(l,v,link=false)=>(
-    <div style={{display:"flex",padding:"10px 0",borderBottom:"1px solid #f8fafc",alignItems:"flex-start"}}>
-      <div style={{width:160,fontSize:10,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:.8,flexShrink:0,paddingTop:2}}>{l}</div>
-      <div style={{fontSize:13,color:"#0f172a",fontWeight:500,flex:1}}>
-        {link&&v ? <a href={v} target="_blank" rel="noreferrer" style={{color:"#2563eb",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6,background:"#eff6ff",padding:"4px 12px",borderRadius:8,fontWeight:600,fontSize:12,border:"1px solid #bfdbfe"}}>📄 View Agreement PDF ↗</a> : v||"—"}
+  const R = (l,v,link=false) => (
+    <div className="flex py-2.5 border-b border-surface-container items-start">
+      <div className="w-40 text-[10px] font-bold text-text-tertiary uppercase tracking-widest flex-shrink-0 pt-0.5">{l}</div>
+      <div className="text-sm text-text-primary font-medium flex-1">
+        {link && v ? <a href={v} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1.5 bg-primary/5 px-3 py-1 rounded-lg font-bold text-xs border border-primary/20">📄 View Agreement PDF ↗</a> : v||"—"}
       </div>
     </div>
   );
   return (
     <div>
-      <div style={{background:"linear-gradient(135deg,#0f172a,#1e3a5f)",borderRadius:14,padding:22,marginBottom:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:16}}>
-          <div style={{width:56,height:56,borderRadius:14,background:"linear-gradient(135deg,#2563eb,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:900,color:"white",boxShadow:"0 8px 24px rgba(37,99,235,.4)",flexShrink:0}}>
-            {c.companyName?.[0]?.toUpperCase()}
-          </div>
-          <div style={{flex:1}}>
-            <h3 style={{margin:0,fontSize:20,fontWeight:800,color:"white"}}>{c.companyName}</h3>
-            <p style={{margin:"4px 0 0",color:"#94a3b8",fontSize:12}}>{c.contactName} · {c.department}</p>
-            {c.serviceFee && <div style={{marginTop:6,background:"rgba(34,197,94,.15)",border:"1px solid rgba(34,197,94,.3)",borderRadius:8,padding:"3px 10px",display:"inline-block",fontSize:11,color:"#22c55e",fontWeight:600}}>💰 {c.serviceFee}</div>}
-          </div>
-          <ContactButtons phone={c.mobile} email={c.email} waMessage={`Hi ${c.contactName||""}, this is regarding ${c.companyName}.`} size="lg"/>
+      <div className="bg-primary rounded-2xl p-6 mb-5 flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center text-xl font-black text-white shrink-0">
+          {c.companyName?.[0]?.toUpperCase()}
         </div>
+        <div className="flex-1">
+          <h3 className="m-0 text-xl font-extrabold text-white">{c.companyName}</h3>
+          <p className="m-0 mt-1 text-white/60 text-xs">{c.contactName} · {c.department}</p>
+          {c.serviceFee && <div className="mt-1.5 bg-green-500/20 border border-green-400/30 rounded-lg px-2.5 py-0.5 inline-block text-[11px] text-green-300 font-semibold">💰 {c.serviceFee}</div>}
+        </div>
+        <ContactButtons phone={c.mobile} email={c.email} waMessage={`Hi ${c.contactName||""}, this is regarding ${c.companyName}.`} size="lg"/>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+      <div className="grid grid-cols-3 gap-2.5 mb-4">
         <StatusBadge v={c.dsc} label="DSC"/>
         <StatusBadge v={c.hardcopy} label="Hardcopy"/>
         <StatusBadge v={c.agreementUrl?"YES":"NO"} label="Agreement"/>
       </div>
       {(c.agreementStartDate || c.agreementEndDate) && (
-        <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{fontSize:12,color:"#92400e"}}>
-              <strong>Agreement Period:</strong> {fmtD(c.agreementStartDate)} → {fmtD(c.agreementEndDate)}
-            </div>
-            <AgreementBadge endDate={c.agreementEndDate}/>
-          </div>
+        <div className="bg-secondary-fixed border border-orange-200 rounded-lg px-4 py-3 mb-4 flex justify-between items-center">
+          <div className="text-xs text-on-secondary-fixed"><strong>Agreement Period:</strong> {fmtD(c.agreementStartDate)} → {fmtD(c.agreementEndDate)}</div>
+          <AgreementBadge endDate={c.agreementEndDate}/>
         </div>
       )}
       {R("SPOC",c.spoc)}{R("Contact",c.contactName)}{R("Department",c.department)}
@@ -167,6 +160,11 @@ function ViewCompany({ c }) {
     </div>
   );
 }
+
+const DSCBadge = ({v}) => {
+  const cls = v==="YES" ? "bg-green-100 text-green-700" : v==="Pending" ? "bg-amber-100 text-amber-800" : "bg-error-bg text-error";
+  return <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap ${cls}`}>{v||"NO"}</span>;
+};
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function Companies({ user, openCompanyId, onOpenedCompany }) {
@@ -203,7 +201,6 @@ export default function Companies({ user, openCompanyId, onOpenedCompany }) {
   useEffect(()=>{ const t=setTimeout(()=>{load(1,search,filterCompany);setPage(1);},400); return()=>clearTimeout(t); },[search]);
   useEffect(()=>{ load(page,search,filterCompany); },[page,filterCompany]);
 
-  // Open a specific company's edit form directly (used by Dashboard alerts)
   useEffect(() => {
     if (!openCompanyId) return;
     (async () => {
@@ -248,7 +245,6 @@ export default function Companies({ user, openCompanyId, onOpenedCompany }) {
   const canDel = user.role==="admin";
   const cos = result.companies||[];
 
-  // Client-side filter for DSC/Hardcopy/Agreement status
   const filtered = cos.filter(c => {
     if (filterDsc && c.dsc!==filterDsc) return false;
     if (filterHardcopy && c.hardcopy!==filterHardcopy) return false;
@@ -265,183 +261,162 @@ export default function Companies({ user, openCompanyId, onOpenedCompany }) {
   const expiredCount = cos.filter(c => { const d = c.agreementEndDate ? daysUntil(c.agreementEndDate) : null; return d!==null && d<0; }).length;
 
   const stats = [
-    {l:"Total Contacts",v:result.total,c:"#2563eb",bg:"#eff6ff",icon:"👥"},
-    {l:"DSC Received",v:cos.filter(c=>c.dsc==="YES").length,c:"#22c55e",bg:"#f0fdf4",icon:"✅"},
-    {l:"Hardcopy Done",v:cos.filter(c=>c.hardcopy==="YES").length,c:"#8b5cf6",bg:"#f5f3ff",icon:"📁"},
-    {l:"Expiring ≤30d",v:expiringCount,c:"#d97706",bg:"#fffbeb",icon:"⏳"},
-    {l:"Expired",v:expiredCount,c:"#ef4444",bg:"#fef2f2",icon:"⛔"},
+    { l:"Total Contacts", v:result.total, icon:"groups", c:"text-primary-container", bg:"bg-primary-fixed" },
+    { l:"DSC Received", v:cos.filter(c=>c.dsc==="YES").length, icon:"verified", c:"text-green-600", bg:"bg-green-50" },
+    { l:"Hardcopy Done", v:cos.filter(c=>c.hardcopy==="YES").length, icon:"folder_special", c:"text-secondary", bg:"bg-secondary-fixed" },
+    { l:"Expiring ≤30d", v:expiringCount, icon:"pending_actions", c:"text-on-secondary-fixed", bg:"bg-amber-50" },
+    { l:"Expired", v:expiredCount, icon:"warning", c:"text-error", bg:"bg-error-bg" },
   ];
 
-  const DSCBadge = ({v}) => {
-    const s = v==="YES"?{bg:"#dcfce7",c:"#16a34a"} : v==="Pending"?{bg:"#fef9c3",c:"#92400e"} : {bg:"#fee2e2",c:"#dc2626"};
-    return <span style={{padding:"3px 8px",borderRadius:8,fontSize:10,fontWeight:700,whiteSpace:"nowrap",background:s.bg,color:s.c}}>{v||"NO"}</span>;
-  };
+  const filterActive = filterCompany||filterDsc||filterHardcopy||filterAgreement;
+  const selectCls = (active) => `px-4 py-2.5 bg-white border rounded-lg text-sm font-semibold outline-none min-w-[150px] transition-all ${active ? "border-primary text-primary" : "border-outline-variant text-text-secondary"}`;
 
   return (
-    <div>
-      {/* ── HEADER ── */}
-      <div style={{background:"white",borderRadius:16,padding:"20px 24px",marginBottom:18,boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:40,height:40,borderRadius:11,background:"linear-gradient(135deg,#0f172a,#1e3a5f)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🏢</div>
+    <div className="max-w-[1440px] mx-auto">
+      {/* Header */}
+      <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-surface-container">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-lg bg-primary-container flex items-center justify-center text-white shadow-md">
+              <span className="material-symbols-outlined text-2xl">corporate_fare</span>
+            </div>
             <div>
-              <h2 style={{fontSize:18,fontWeight:800,color:"#0f172a",margin:0}}>Company Contacts</h2>
-              <p style={{color:"#64748b",margin:0,fontSize:12}}><strong style={{color:"#0f172a"}}>{result.total}</strong> client contacts · agreement & compliance tracker</p>
+              <h1 className="text-2xl font-extrabold text-text-primary tracking-tight">Company Contacts</h1>
+              <p className="text-sm text-text-tertiary"><strong className="text-primary">{result.total}</strong> client contacts · compliance tracker</p>
             </div>
           </div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {canEdit && <button onClick={()=>setModal({type:"add"})} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 18px",background:"linear-gradient(135deg,#2563eb,#7c3aed)",color:"white",border:"none",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13,boxShadow:"0 4px 12px rgba(37,99,235,.3)"}}
-              onMouseEnter={e=>e.currentTarget.style.transform="translateY(-1px)"}
-              onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
-              <Icon n="plus" s={14}/> Add Contact
+          <div className="flex flex-wrap gap-3">
+            {canEdit && <button onClick={()=>setModal({type:"add"})} className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-white rounded-lg font-bold text-sm shadow-lg hover:bg-accent-hover transition-all transform hover:-translate-y-0.5 active:translate-y-0">
+              <span className="material-symbols-outlined text-lg">add</span> Add Contact
             </button>}
-            <button onClick={()=>load(page,search,filterCompany)} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",background:"white",border:"1.5px solid #e2e8f0",borderRadius:10,fontWeight:600,cursor:"pointer",fontSize:12,color:"#374151"}}>
-              <Icon n="refresh" s={13}/> Refresh
+            <button onClick={()=>load(page,search,filterCompany)} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-outline-variant text-text-secondary rounded-lg font-semibold text-sm hover:bg-surface-container-low transition-colors">
+              <span className="material-symbols-outlined text-lg">refresh</span> Refresh
             </button>
-            <button onClick={exportCSV} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",background:"white",border:"1.5px solid #e2e8f0",borderRadius:10,fontWeight:600,cursor:"pointer",fontSize:12,color:"#374151"}}>
-              <Icon n="dl" s={13}/> Export
+            <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-outline-variant text-text-secondary rounded-lg font-semibold text-sm hover:bg-surface-container-low transition-colors">
+              <span className="material-symbols-outlined text-lg">download</span> Export
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── STATS ── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:12,marginBottom:18}}>
-        {stats.map(s=>(
-          <div key={s.l} style={{background:"white",borderRadius:12,padding:"16px 18px",boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9",display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:40,height:40,borderRadius:10,background:s.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{s.icon}</div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        {stats.map(s => (
+          <div key={s.l} className="bg-white rounded-xl p-5 shadow-sm border border-surface-container flex items-center gap-4">
+            <div className={`w-11 h-11 rounded-lg ${s.bg} flex items-center justify-center ${s.c} shrink-0`}>
+              <span className="material-symbols-outlined text-2xl">{s.icon}</span>
+            </div>
             <div>
-              <div style={{fontSize:22,fontWeight:800,color:s.c,lineHeight:1}}>{s.v}</div>
-              <div style={{fontSize:10,color:"#64748b",marginTop:3,fontWeight:500,lineHeight:1.2}}>{s.l}</div>
+              <div className={`text-2xl font-extrabold leading-none tracking-tight ${s.c}`}>{s.v}</div>
+              <div className="text-[11px] text-text-tertiary font-bold uppercase tracking-wider mt-1">{s.l}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {msg.text && <div style={{background:msg.type==="error"?"#fee2e2":"#dcfce7",color:msg.type==="error"?"#991b1b":"#166534",padding:"12px 18px",borderRadius:10,marginBottom:14,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>{msg.text}</div>}
+      {msg.text && (
+        <div className={`px-5 py-3 rounded-lg mb-4 text-sm font-semibold ${msg.type==="error"?"bg-error-bg text-error":"bg-green-100 text-green-700"}`}>{msg.text}</div>
+      )}
 
-      {/* ── SEARCH & FILTERS ── */}
-      <div style={{background:"white",borderRadius:14,padding:16,marginBottom:16,boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9"}}>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          <div style={{flex:1,minWidth:200,display:"flex",alignItems:"center",gap:8,background:"#f8fafc",borderRadius:10,padding:"10px 14px",border:"1.5px solid #e2e8f0"}}>
-            <Icon n="search" s={14}/>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, contact, email, mobile…"
-              style={{border:"none",background:"none",outline:"none",fontSize:13,width:"100%",color:"#374151"}}/>
-            {search && <button onClick={()=>{setSearch("");load(1,"",filterCompany);}} style={{border:"none",background:"none",cursor:"pointer",color:"#94a3b8",fontSize:16,display:"flex",padding:0}}>✕</button>}
+      {/* Filters */}
+      <div className="bg-white rounded-xl p-5 mb-6 shadow-sm border border-surface-container">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex-1 min-w-[250px] relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary text-lg">search</span>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search companies, contacts, emails..." className="w-full pl-10 pr-4 py-2.5 bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/10 text-sm outline-none transition-all"/>
           </div>
-          <select value={filterCompany} onChange={e=>{setFilterCompany(e.target.value);setPage(1);load(1,search,e.target.value);}}
-            style={{padding:"10px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:12,background:"white",outline:"none",minWidth:160,fontWeight:500,color:"#374151"}}>
+          <select value={filterCompany} onChange={e=>{setFilterCompany(e.target.value);setPage(1);load(1,search,e.target.value);}} className={selectCls(filterCompany)}>
             <option value="">🏢 All Companies</option>
             {uniqCompanies.map(c=><option key={c} value={c}>{c}</option>)}
           </select>
-          <select value={filterDsc} onChange={e=>setFilterDsc(e.target.value)}
-            style={{padding:"10px 14px",borderRadius:10,border:`1.5px solid ${filterDsc?"#2563eb":"#e2e8f0"}`,fontSize:12,background:filterDsc?"#eff6ff":"white",outline:"none",color:filterDsc?"#1d4ed8":"#374151",fontWeight:filterDsc?600:500}}>
+          <select value={filterDsc} onChange={e=>setFilterDsc(e.target.value)} className={selectCls(filterDsc)}>
             <option value="">📄 DSC: All</option>
             <option value="YES">DSC: Received</option>
             <option value="NO">DSC: Not Received</option>
             <option value="Pending">DSC: Pending</option>
           </select>
-          <select value={filterHardcopy} onChange={e=>setFilterHardcopy(e.target.value)}
-            style={{padding:"10px 14px",borderRadius:10,border:`1.5px solid ${filterHardcopy?"#2563eb":"#e2e8f0"}`,fontSize:12,background:filterHardcopy?"#eff6ff":"white",outline:"none",color:filterHardcopy?"#1d4ed8":"#374151",fontWeight:filterHardcopy?600:500}}>
+          <select value={filterHardcopy} onChange={e=>setFilterHardcopy(e.target.value)} className={selectCls(filterHardcopy)}>
             <option value="">📁 Hardcopy: All</option>
             <option value="YES">Hardcopy: Done</option>
             <option value="NO">Hardcopy: Pending</option>
           </select>
-          <select value={filterAgreement} onChange={e=>setFilterAgreement(e.target.value)}
-            style={{padding:"10px 14px",borderRadius:10,border:`1.5px solid ${filterAgreement?"#2563eb":"#e2e8f0"}`,fontSize:12,background:filterAgreement?"#eff6ff":"white",outline:"none",color:filterAgreement?"#1d4ed8":"#374151",fontWeight:filterAgreement?600:500}}>
+          <select value={filterAgreement} onChange={e=>setFilterAgreement(e.target.value)} className={selectCls(filterAgreement)}>
             <option value="">📅 Agreement: All</option>
             <option value="expiring">Expiring ≤30 days</option>
             <option value="expired">Already expired</option>
             <option value="missing">No date set</option>
           </select>
-          {(filterCompany||filterDsc||filterHardcopy||filterAgreement) && <button onClick={()=>{setFilterCompany("");setFilterDsc("");setFilterHardcopy("");setFilterAgreement("");load(1,search,"");}}
-            style={{padding:"10px 14px",borderRadius:10,border:"1.5px solid #fecaca",background:"#fef2f2",color:"#dc2626",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-            Clear ✕
-          </button>}
+          {filterActive && (
+            <button onClick={()=>{setFilterCompany("");setFilterDsc("");setFilterHardcopy("");setFilterAgreement("");load(1,search,"");}}
+              className="flex items-center gap-2 px-4 py-2.5 bg-error-bg text-error rounded-lg font-bold text-sm hover:bg-error hover:text-white transition-all">
+              Clear <span className="text-lg">✕</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── TABLE ── */}
-      <div style={{background:"white",borderRadius:14,boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9",overflow:"hidden"}}>
+      {/* Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-surface-container overflow-hidden">
         {loading ? (
-          <div style={{padding:80,textAlign:"center"}}>
-            <div style={{width:40,height:40,border:"3px solid #f1f5f9",borderTop:"3px solid #2563eb",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto 14px"}}/>
-            <div style={{color:"#64748b",fontSize:13}}>Loading company contacts…</div>
+          <div className="p-20 text-center">
+            <div className="w-10 h-10 border-4 border-primary/10 border-t-secondary rounded-full animate-spin-fast mx-auto mb-4"></div>
+            <div className="text-text-tertiary text-sm">Loading company contacts…</div>
           </div>
         ) : filtered.length===0 ? (
-          <div style={{padding:80,textAlign:"center"}}>
-            <div style={{width:64,height:64,borderRadius:18,background:"linear-gradient(135deg,#f1f5f9,#e2e8f0)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:28}}>🏢</div>
-            <div style={{fontSize:16,fontWeight:700,color:"#0f172a",marginBottom:6}}>No company contacts found</div>
-            <div style={{fontSize:13,color:"#94a3b8",marginBottom:16}}>Try adjusting filters or add your first company contact</div>
-            {canEdit && <button onClick={()=>setModal({type:"add"})} style={{padding:"10px 20px",background:"linear-gradient(135deg,#2563eb,#7c3aed)",color:"white",border:"none",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13}}>+ Add Company Contact</button>}
+          <div className="p-20 text-center">
+            <span className="material-symbols-outlined text-5xl text-outline-variant">corporate_fare</span>
+            <div className="text-lg font-bold text-text-primary mt-3 mb-1">No company contacts found</div>
+            <div className="text-sm text-text-tertiary mb-4">Try adjusting filters or add your first company contact</div>
+            {canEdit && <button onClick={()=>setModal({type:"add"})} className="px-5 py-2.5 bg-secondary text-white rounded-lg font-bold text-sm">+ Add Company Contact</button>}
           </div>
         ) : (
           <>
-          <div style={{overflow:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full border-collapse">
               <thead>
-                <tr style={{background:"linear-gradient(to right,#f8fafc,#f1f5f9)"}}>
-                  {[["Company",130],["SPOC",80],["Contact Person",140],["Dept",70],["Mobile",105],["Email",170],["DSC",65],["Hardcopy",85],["Agreement PDF",95],["Agreement Status",110],["Connect",90],["",90]].map(([l,w])=>(
-                    <th key={l} style={{padding:"12px 12px",textAlign:"left",fontWeight:700,color:"#64748b",fontSize:10,textTransform:"uppercase",letterSpacing:.7,minWidth:w,whiteSpace:"nowrap",borderBottom:"2px solid #e2e8f0"}}>{l}</th>
+                <tr className="bg-surface text-left">
+                  {["Company","SPOC","Contact Person","Dept","Mobile","Email","DSC","Hardcopy","Agreement PDF","Agreement Status","Connect","Actions"].map(l=>(
+                    <th key={l} className="p-4 text-[11px] font-bold text-text-secondary uppercase tracking-widest border-b-2 border-surface-container-high whitespace-nowrap">{l}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-surface-container">
                 {filtered.map((c,i)=>(
-                  <tr key={c.id}
-                    style={{borderBottom:"1px solid #f8fafc",background:i%2===0?"white":"#fcfcfd",transition:"all .1s"}}
-                    onMouseEnter={e=>{ e.currentTarget.style.background="#f0f9ff"; e.currentTarget.style.boxShadow="inset 3px 0 0 #2563eb"; }}
-                    onMouseLeave={e=>{ e.currentTarget.style.background=i%2===0?"white":"#fcfcfd"; e.currentTarget.style.boxShadow="none"; }}>
-                    <td style={{padding:"12px 12px"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <div style={{width:30,height:30,borderRadius:8,background:"linear-gradient(135deg,#0f172a,#1e3a5f)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"white",flexShrink:0}}>
-                          {c.companyName?.[0]?.toUpperCase()}
-                        </div>
-                        <span style={{fontWeight:700,color:"#1e293b",maxWidth:95,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.companyName}</span>
+                  <tr key={c.id} className={`hover:bg-surface-container-lowest transition-colors ${i%2!==0 ? "bg-surface-container-low" : ""}`}>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary-container text-white flex items-center justify-center font-black text-xs shrink-0">{c.companyName?.[0]?.toUpperCase()}</div>
+                        <span className="font-bold text-text-primary truncate max-w-[110px]">{c.companyName}</span>
                       </div>
                     </td>
-                    <td style={{padding:"12px 12px"}}>
-                      {c.spoc ? <span style={{background:"#f0f9ff",color:"#0369a1",border:"1px solid #bae6fd",padding:"2px 8px",borderRadius:8,fontSize:11,fontWeight:600}}>{c.spoc}</span> : <span style={{color:"#94a3b8"}}>—</span>}
+                    <td className="p-4">
+                      {c.spoc ? <span className="bg-primary-fixed text-primary-container text-[11px] font-bold px-2 py-1 rounded">{c.spoc}</span> : <span className="text-text-tertiary">—</span>}
                     </td>
-                    <td style={{padding:"12px 12px"}}>
-                      <div style={{fontWeight:600,color:"#0f172a"}}>{c.contactName||"—"}</div>
+                    <td className="p-4"><div className="text-sm font-semibold text-text-primary">{c.contactName||"—"}</div></td>
+                    <td className="p-4"><span className="bg-surface border border-outline-variant text-text-secondary px-2 py-1 rounded text-[11px]">{c.department||"—"}</span></td>
+                    <td className="p-4 text-xs font-mono text-text-secondary">{c.mobile||"—"}</td>
+                    <td className="p-4 text-xs">
+                      {c.email ? <a href={`mailto:${c.email}`} className="text-primary truncate max-w-[160px] block">{c.email}</a> : "—"}
                     </td>
-                    <td style={{padding:"12px 12px"}}>
-                      <span style={{background:"#f8fafc",border:"1px solid #e2e8f0",color:"#64748b",padding:"2px 8px",borderRadius:7,fontSize:11}}>{c.department||"—"}</span>
-                    </td>
-                    <td style={{padding:"12px 12px",fontFamily:"monospace",fontSize:11,color:"#475569"}}>{c.mobile||"—"}</td>
-                    <td style={{padding:"12px 12px",fontSize:11}}>
-                      {c.email ? <a href={`mailto:${c.email}`} style={{color:"#2563eb",textDecoration:"none",maxWidth:160,display:"block",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.email}</a> : "—"}
-                    </td>
-                    <td style={{padding:"12px 12px"}}><DSCBadge v={c.dsc}/></td>
-                    <td style={{padding:"12px 12px"}}><DSCBadge v={c.hardcopy}/></td>
-                    <td style={{padding:"12px 12px"}}>
+                    <td className="p-4"><DSCBadge v={c.dsc}/></td>
+                    <td className="p-4"><DSCBadge v={c.hardcopy}/></td>
+                    <td className="p-4">
                       {c.agreementUrl
-                        ? <a href={c.agreementUrl} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",background:"#eff6ff",color:"#2563eb",borderRadius:8,fontSize:11,fontWeight:700,textDecoration:"none",border:"1px solid #bfdbfe"}}>📄 View</a>
-                        : <span style={{color:"#94a3b8",fontSize:11,background:"#fef2f2",padding:"3px 8px",borderRadius:7,border:"1px solid #fecaca",fontWeight:600}}>⚠️ Missing</span>}
+                        ? <a href={c.agreementUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary-fixed text-primary-container rounded-lg text-[11px] font-bold border border-primary/20 hover:bg-primary-container hover:text-white transition-all"><span className="material-symbols-outlined text-sm">link</span> View</a>
+                        : <span className="inline-block px-3 py-1 bg-error-bg text-error rounded-lg text-[10px] font-bold border border-error/20">MISSING</span>}
                     </td>
-                    <td style={{padding:"12px 12px"}}>
-                      <AgreementBadge endDate={c.agreementEndDate}/>
-                    </td>
-                    <td style={{padding:"12px 12px"}}>
-                      <ContactButtons phone={c.mobile} email={c.email} waMessage={`Hi ${c.contactName||""}, this is regarding ${c.companyName}.`}/>
-                    </td>
-                    <td style={{padding:"12px 12px"}}>
-                      <div style={{display:"flex",gap:4}}>
-                        <button onClick={()=>setModal({type:"view",data:c})} title="View" style={{padding:"5px 7px",background:"#f0f9ff",border:"1px solid #bfdbfe",borderRadius:6,cursor:"pointer",color:"#2563eb",display:"flex"}}
-                          onMouseEnter={e=>e.currentTarget.style.background="#dbeafe"}
-                          onMouseLeave={e=>e.currentTarget.style.background="#f0f9ff"}>
-                          <Icon n="eye" s={12}/>
+                    <td className="p-4"><AgreementBadge endDate={c.agreementEndDate}/></td>
+                    <td className="p-4"><ContactButtons phone={c.mobile} email={c.email} waMessage={`Hi ${c.contactName||""}, this is regarding ${c.companyName}.`}/></td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <button onClick={()=>setModal({type:"view",data:c})} title="View" className="p-1.5 bg-surface-container rounded-md text-primary hover:bg-primary hover:text-white transition-all">
+                          <span className="material-symbols-outlined text-lg">visibility</span>
                         </button>
-                        {canEdit && <button onClick={()=>setModal({type:"edit",data:c})} title="Edit" style={{padding:"5px 7px",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:6,cursor:"pointer",color:"#16a34a",display:"flex"}}
-                          onMouseEnter={e=>e.currentTarget.style.background="#dcfce7"}
-                          onMouseLeave={e=>e.currentTarget.style.background="#f0fdf4"}>
-                          <Icon n="edit" s={12}/>
+                        {canEdit && <button onClick={()=>setModal({type:"edit",data:c})} title="Edit" className="p-1.5 bg-secondary-fixed rounded-md text-secondary hover:bg-secondary hover:text-white transition-all">
+                          <span className="material-symbols-outlined text-lg">edit</span>
                         </button>}
-                        {canDel && <button onClick={()=>handleDelete(c.id,c.contactName||c.companyName)} title="Delete" style={{padding:"5px 7px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:6,cursor:"pointer",color:"#dc2626",display:"flex"}}
-                          onMouseEnter={e=>e.currentTarget.style.background="#fee2e2"}
-                          onMouseLeave={e=>e.currentTarget.style.background="#fef2f2"}>
-                          <Icon n="trash" s={12}/>
+                        {canDel && <button onClick={()=>handleDelete(c.id,c.contactName||c.companyName)} title="Delete" className="p-1.5 bg-error-bg rounded-md text-error hover:bg-error hover:text-white transition-all">
+                          <span className="material-symbols-outlined text-lg">delete</span>
                         </button>}
                       </div>
                     </td>
@@ -450,14 +425,16 @@ export default function Companies({ user, openCompanyId, onOpenedCompany }) {
               </tbody>
             </table>
           </div>
-          <div style={{padding:"14px 20px",borderTop:"1px solid #f1f5f9",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
-            <div style={{fontSize:12,color:"#64748b"}}>
-              Showing <strong style={{color:"#0f172a"}}>{filtered.length}</strong> of <strong style={{color:"#0f172a"}}>{result.total}</strong> contacts
+          <div className="p-4 bg-surface border-t border-surface-container flex flex-wrap items-center justify-between gap-4">
+            <div className="text-sm font-medium text-text-secondary">
+              Displaying <strong className="text-text-primary">{filtered.length}</strong> of <strong className="text-text-primary">{result.total}</strong> contact records
             </div>
-            <div style={{display:"flex",gap:4}}>
-              <button onClick={()=>{const p=page-1;setPage(p);load(p,search,filterCompany);}} disabled={page<=1} style={{padding:"6px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page<=1?"not-allowed":"pointer",fontSize:12,opacity:page<=1?.4:1,fontWeight:600}}>‹ Prev</button>
-              <span style={{padding:"6px 14px",background:"#2563eb",color:"white",borderRadius:8,fontSize:12,fontWeight:700}}>{page}</span>
-              <button onClick={()=>{const p=page+1;setPage(p);load(p,search,filterCompany);}} disabled={page>=result.pages} style={{padding:"6px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,background:"white",cursor:page>=result.pages?"not-allowed":"pointer",fontSize:12,opacity:page>=result.pages?.4:1,fontWeight:600}}>Next ›</button>
+            <div className="flex items-center gap-2">
+              <button onClick={()=>{const p=page-1;setPage(p);load(p,search,filterCompany);}} disabled={page<=1}
+                className="px-4 py-2 bg-white border border-outline-variant rounded-lg text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container-low transition-colors">‹ Prev</button>
+              <span className="w-10 h-10 flex items-center justify-center bg-primary-container text-white rounded-lg text-sm font-black shadow-md">{page}</span>
+              <button onClick={()=>{const p=page+1;setPage(p);load(p,search,filterCompany);}} disabled={page>=result.pages}
+                className="px-4 py-2 bg-white border border-outline-variant rounded-lg text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container-low transition-colors">Next ›</button>
             </div>
           </div>
           </>
@@ -473,7 +450,6 @@ export default function Companies({ user, openCompanyId, onOpenedCompany }) {
       <Modal open={modal?.type==="view"} onClose={()=>setModal(null)} title="Company Details">
         <ViewCompany c={modal?.data}/>
       </Modal>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

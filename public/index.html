@@ -18,6 +18,63 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#001c3e",
+              navy: "#003163",
+              secondary: "#E67E22",
+              "accent-hover": "#d35400",
+              surface: "#f8f9fa",
+              "surface-container": "#edeeef",
+              "surface-container-low": "#f3f4f5",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-high": "#e7e8e9",
+              "border-muted": "#c3c6d1",
+              "outline-variant": "#c3c6d1",
+              outline: "#737780",
+              "text-primary": "#191c1d",
+              "text-secondary": "#43474f",
+              "text-tertiary": "#737780",
+              error: "#ba1a1a",
+              "error-bg": "#ffdad6",
+              "primary-fixed": "#d5e3ff",
+              "primary-container": "#003163",
+              "on-primary-container": "#789ad3",
+              "secondary-fixed": "#ffe9d6",
+              "on-secondary-fixed": "#713700",
+            },
+            fontFamily: {
+              sans: ["Inter", "system-ui", "sans-serif"],
+            },
+            spacing: {
+              xs: "8px", sm: "12px", md: "16px", lg: "24px", xl: "32px",
+              gutter: "24px", xxl: "48px", giant: "64px", base: "4px",
+              "container-max": "1440px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+        display: inline-block;
+        vertical-align: middle;
+        line-height: 1;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .animate-spin-fast { animation: spin 0.8s linear infinite; }
+      .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #c3c6d1; border-radius: 10px; }
+      .funnel-step-clip { clip-path: polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%, 5% 50%); }
+      .funnel-step-clip-first { clip-path: polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%); }
+    </style>
     <!--
       Notice the use of %PUBLIC_URL% in the tags above.
       It will be replaced with the URL of the `public` folder during the build.

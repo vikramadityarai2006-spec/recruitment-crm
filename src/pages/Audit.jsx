@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
-import { Spin } from "../components/UI";
+
+const ACTION_STYLE = {
+  Created: { bg: "bg-green-100", c: "text-green-700", icon: "add_circle" },
+  Updated: { bg: "bg-yellow-100", c: "text-yellow-800", icon: "edit_square" },
+  Deleted: { bg: "bg-red-100", c: "text-red-800", icon: "delete" },
+};
+const DEFAULT_STYLE = { bg: "bg-gray-100", c: "text-gray-600", icon: "radio_button_checked" };
 
 export default function Audit() {
   const [logs, setLogs] = useState([]);
@@ -17,80 +23,82 @@ export default function Audit() {
 
   useEffect(() => { load(); }, []);
 
-  const ACTION_STYLE = {
-    Created:  { bg:"#dcfce7", c:"#16a34a", icon:"✅" },
-    Updated:  { bg:"#fef9c3", c:"#92400e", icon:"✏️" },
-    Deleted:  { bg:"#fee2e2", c:"#dc2626", icon:"🗑️" },
-  };
-
   return (
-    <div>
-      <div style={{background:"white",borderRadius:16,padding:"20px 24px",marginBottom:18,boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <div style={{width:40,height:40,borderRadius:11,background:"linear-gradient(135deg,#475569,#334155)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📋</div>
+    <div className="max-w-container-max mx-auto">
+      {/* Header */}
+      <div className="bg-surface-container-lowest rounded-xl p-lg mb-md shadow-sm border border-outline-variant flex justify-between items-center flex-wrap gap-4">
+        <div className="flex items-center gap-md">
+          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+            <span className="material-symbols-outlined text-white text-[20px]">history</span>
+          </div>
           <div>
-            <h2 style={{fontSize:18,fontWeight:800,color:"#0f172a",margin:0}}>Audit Log</h2>
-            <p style={{color:"#64748b",margin:0,fontSize:12}}>{logs.length} recent actions tracked</p>
+            <h2 className="text-xl font-bold text-text-primary m-0">Audit Log</h2>
+            <p className="text-text-tertiary m-0 text-xs">{logs.length} recent actions tracked</p>
           </div>
         </div>
-        <button onClick={load} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",background:"white",border:"1.5px solid #e2e8f0",borderRadius:10,fontWeight:600,cursor:"pointer",fontSize:12,color:"#374151"}}>
-          🔄 Refresh
+        <button onClick={load} className="flex items-center gap-xs px-md py-sm bg-surface-container-lowest border border-outline-variant rounded-lg font-semibold text-xs text-text-primary hover:bg-surface-container-low transition-colors cursor-pointer">
+          <span className="material-symbols-outlined text-[16px]">refresh</span>
+          Refresh
         </button>
       </div>
 
-      <div style={{background:"white",borderRadius:14,overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,.06)",border:"1px solid #f1f5f9"}}>
+      {/* Table */}
+      <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border border-outline-variant">
         {loading ? (
-          <div style={{padding:60,textAlign:"center"}}><Spin/><div style={{marginTop:12,color:"#94a3b8",fontSize:13}}>Loading audit logs…</div></div>
+          <div className="p-16 text-center">
+            <div className="w-9 h-9 border-4 border-primary/10 border-t-secondary rounded-full animate-spin-fast mx-auto mb-3"></div>
+            <div className="text-text-tertiary text-sm">Loading audit logs…</div>
+          </div>
         ) : error ? (
-          <div style={{padding:40,textAlign:"center",color:"#ef4444"}}>Failed to load: {error}</div>
+          <div className="p-10 text-center text-error font-medium">Failed to load: {error}</div>
         ) : logs.length === 0 ? (
-          <div style={{padding:60,textAlign:"center"}}>
-            <div style={{fontSize:36,marginBottom:10}}>📋</div>
-            <div style={{fontSize:14,fontWeight:700,color:"#0f172a"}}>No audit logs yet</div>
-            <div style={{fontSize:12,color:"#94a3b8",marginTop:4}}>Actions will appear here as users interact with the CRM</div>
+          <div className="p-16 text-center">
+            <span className="material-symbols-outlined text-4xl text-outline-variant">history</span>
+            <div className="text-sm font-bold text-text-primary mt-2">No audit logs yet</div>
+            <div className="text-xs text-text-tertiary mt-1">Actions will appear here as users interact with the CRM</div>
           </div>
         ) : (
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-            <thead>
-              <tr style={{background:"linear-gradient(to right,#f8fafc,#f1f5f9)"}}>
-                {["Time","User","Action","Record","Details"].map(h=>(
-                  <th key={h} style={{padding:"12px 16px",textAlign:"left",fontSize:10,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:.7,borderBottom:"2px solid #e2e8f0"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((l,i)=>{
-                const s = ACTION_STYLE[l.action] || {bg:"#f1f5f9",c:"#475569",icon:"•"};
-                return (
-                  <tr key={i} style={{borderBottom:"1px solid #f8fafc",background:i%2?"#fcfcfd":"white",transition:"background .1s"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="#f0f9ff"}
-                    onMouseLeave={e=>e.currentTarget.style.background=i%2?"#fcfcfd":"white"}>
-                    <td style={{padding:"12px 16px",color:"#64748b",fontFamily:"monospace",fontSize:10,whiteSpace:"nowrap"}}>
-                      {new Date(l.createdAt).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}
-                    </td>
-                    <td style={{padding:"12px 16px"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:7}}>
-                        <div style={{width:26,height:26,borderRadius:7,background:"linear-gradient(135deg,#2563eb,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:"white",flexShrink:0}}>
-                          {(l.user?.name||"S")[0].toUpperCase()}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-surface-container">
+                  {["Time", "User", "Action", "Record", "Details"].map(h => (
+                    <th key={h} className="px-lg py-sm text-left text-xs font-bold text-primary uppercase tracking-wider border-b border-outline-variant">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant">
+                {logs.map((l, i) => {
+                  const s = ACTION_STYLE[l.action] || DEFAULT_STYLE;
+                  return (
+                    <tr key={i} className="hover:bg-surface-container-low transition-colors">
+                      <td className="px-lg py-md text-text-tertiary font-mono text-[11px] whitespace-nowrap">
+                        {new Date(l.createdAt).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td className="px-lg py-md">
+                        <div className="flex items-center gap-sm">
+                          <div className="w-7 h-7 rounded-full bg-primary-container flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                            {(l.user?.name || "S")[0].toUpperCase()}
+                          </div>
+                          <span className="font-semibold text-text-primary text-[13px]">{l.user?.name || "System"}</span>
                         </div>
-                        <span style={{fontWeight:600,color:"#1e293b",fontSize:12}}>{l.user?.name||"System"}</span>
-                      </div>
-                    </td>
-                    <td style={{padding:"12px 16px"}}>
-                      <span style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:s.bg,color:s.c}}>
-                        {s.icon} {l.action}
-                      </span>
-                    </td>
-                    <td style={{padding:"12px 16px",fontWeight:600,color:"#1e293b"}}>{l.recordName||"—"}</td>
-                    <td style={{padding:"12px 16px",color:"#64748b",fontSize:11}}>{l.detail||"—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="px-lg py-md">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold ${s.bg} ${s.c}`}>
+                          <span className="material-symbols-outlined text-[14px] leading-none">{s.icon}</span>
+                          {l.action}
+                        </span>
+                      </td>
+                      <td className="px-lg py-md font-semibold text-text-primary text-[13px]">{l.recordName || "—"}</td>
+                      <td className="px-lg py-md text-text-secondary text-[13px]">{l.detail || "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

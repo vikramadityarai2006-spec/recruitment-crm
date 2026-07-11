@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
-import { Spin, MiniBar, Icon } from "../components/UI";
+import { MiniBar } from "../components/UI";
 
 const RANGES = [
   { v: 1,  l: "Last Month" },
@@ -30,30 +30,23 @@ export default function Report() {
     joined: acc.joined + m.joined,
   }), { added: 0, offered: 0, joined: 0 });
 
-  const addedSeries   = (data?.monthly || []).map(m => ({ label: m.label, value: m.added,   color: "#2563eb" }));
-  const offeredSeries = (data?.monthly || []).map(m => ({ label: m.label, value: m.offered, color: "#f97316" }));
-  const joinedSeries  = (data?.monthly || []).map(m => ({ label: m.label, value: m.joined,  color: "#22c55e" }));
+  const rangeLabel = RANGES.find(r => r.v === range)?.l;
+  const addedSeries   = (data?.monthly || []).map(m => ({ label: m.label, value: m.added,   color: "#001c3e" }));
+  const offeredSeries = (data?.monthly || []).map(m => ({ label: m.label, value: m.offered, color: "#E67E22" }));
+  const joinedSeries  = (data?.monthly || []).map(m => ({ label: m.label, value: m.joined,  color: "#059669" }));
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, flexWrap: "wrap", gap: 10 }}>
+    <div className="max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>Reports</h2>
-          <p style={{ color: "#64748b", margin: "3px 0 0", fontSize: 13 }}>Monthly tracking of your candidate activity</p>
+          <h2 className="text-2xl font-bold text-primary tracking-tight">Reports</h2>
+          <p className="text-sm text-outline mt-1 font-medium">Monthly tracking of your candidate activity</p>
         </div>
-
-        {/* Range toggle */}
-        <div style={{ display: "flex", gap: 4, background: "#f1f5f9", padding: 4, borderRadius: 10 }}>
+        <div className="flex p-1 bg-surface-container-high rounded-lg border border-outline-variant">
           {RANGES.map(r => (
             <button key={r.v} onClick={() => setRange(r.v)}
-              style={{
-                padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer",
-                fontSize: 12, fontWeight: 700,
-                background: range === r.v ? "white" : "transparent",
-                color: range === r.v ? "#2563eb" : "#64748b",
-                boxShadow: range === r.v ? "0 1px 3px rgba(0,0,0,.1)" : "none",
-                transition: "all .15s",
-              }}>
+              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${range === r.v ? "bg-white text-primary shadow-sm ring-1 ring-black/5" : "text-outline hover:text-primary"}`}>
               {r.l}
             </button>
           ))}
@@ -61,73 +54,88 @@ export default function Report() {
       </div>
 
       {loading && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, gap: 12 }}>
-          <Spin /><span style={{ color: "#94a3b8", fontSize: 13 }}>Loading report…</span>
+        <div className="flex flex-col items-center justify-center h-48 gap-3">
+          <div className="w-9 h-9 border-4 border-primary/10 border-t-secondary rounded-full animate-spin-fast"></div>
+          <span className="text-text-tertiary text-sm">Loading report…</span>
         </div>
       )}
 
-      {!loading && error && <div style={{ color: "#ef4444", padding: 20 }}>Error: {error}</div>}
+      {!loading && error && <div className="text-error p-5 font-medium">Error: {error}</div>}
 
       {!loading && !error && data && (
-        <>
+        <div className="space-y-6">
           {/* Period totals */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12, marginBottom: 14 }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { l: `Added (${RANGES.find(r => r.v === range)?.l})`, v: totals.added, c: "#2563eb" },
-              { l: `Offered (${RANGES.find(r => r.v === range)?.l})`, v: totals.offered, c: "#f97316" },
-              { l: `Joined (${RANGES.find(r => r.v === range)?.l})`, v: totals.joined, c: "#22c55e" },
+              { l: `Added (${rangeLabel})`, v: totals.added, icon: "person_add", c: "text-primary", bg: "bg-primary/5", bar: "bg-primary" },
+              { l: `Offered (${rangeLabel})`, v: totals.offered, icon: "description", c: "text-secondary", bg: "bg-secondary/5", bar: "bg-secondary" },
+              { l: `Joined (${rangeLabel})`, v: totals.joined, icon: "handshake", c: "text-emerald-600", bg: "bg-emerald-50", bar: "bg-emerald-600" },
             ].map(c => (
-              <div key={c.l} style={{ background: "white", borderRadius: 12, padding: 16, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9" }}>
-                <div style={{ fontSize: 26, fontWeight: 800, color: c.c }}>{c.v ?? 0}</div>
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2, fontWeight: 500, lineHeight: 1.3 }}>{c.l}</div>
-                <div style={{ width: 28, height: 3, background: c.c, borderRadius: 2, marginTop: 8, opacity: .4 }} />
+              <div key={c.l} className="bg-white rounded-xl p-6 border border-outline-variant shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-outline">{c.l}</span>
+                  <div className={`w-8 h-8 rounded-full ${c.bg} flex items-center justify-center`}>
+                    <span className={`material-symbols-outlined ${c.c} text-lg`}>{c.icon}</span>
+                  </div>
+                </div>
+                <div className={`text-3xl font-extrabold ${c.c}`}>{c.v ?? 0}</div>
+                <div className={`mt-4 h-1 w-12 ${c.bar}/20 rounded-full overflow-hidden`}>
+                  <div className={`h-full ${c.bar} w-2/3`}></div>
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Current status snapshot — not date-bucketed, since statuses
-              don't carry a history of when they changed */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12, marginBottom: 18 }}>
+          {/* Current status snapshot */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { l: "Total Candidates (current)", v: data.snapshot.total, c: "#0f172a" },
-              { l: "Backout (current)", v: data.snapshot.backout, c: "#dc2626" },
-              { l: "On Hold (current)", v: data.snapshot.hold, c: "#92400e" },
-              { l: "Resignation Pending (current)", v: data.snapshot.resPending, c: "#7c3aed" },
+              { l: "Total Candidates", v: data.snapshot.total, c: "text-primary" },
+              { l: "Backout (Current)", v: data.snapshot.backout, c: "text-error" },
+              { l: "On Hold (Current)", v: data.snapshot.hold, c: "text-secondary" },
+              { l: "Resignation Pending", v: data.snapshot.resPending, c: "text-indigo-500" },
             ].map(c => (
-              <div key={c.l} style={{ background: "#f8fafc", borderRadius: 12, padding: "12px 16px", border: "1px solid #f1f5f9" }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: c.c }}>{c.v ?? 0}</div>
-                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2, fontWeight: 600 }}>{c.l}</div>
+              <div key={c.l} className="bg-surface-container-low rounded-lg p-4 border border-outline-variant/50">
+                <div className={`text-lg font-bold ${c.c}`}>{c.v ?? 0}</div>
+                <div className="text-[10px] font-bold text-outline uppercase tracking-tight">{c.l}</div>
               </div>
             ))}
           </div>
 
           {/* Monthly trend charts */}
-          <div style={{ display: "grid", gridTemplateColumns: range <= 3 ? "1fr" : "1fr 1fr", gap: 14 }}>
-            <div style={{ background: "white", borderRadius: 12, padding: 18, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-                <Icon n="trendUp" s={13} /> Candidates Added
+          <div className={`grid grid-cols-1 ${range <= 3 ? "" : "lg:grid-cols-2"} gap-6`}>
+            {[
+              { title: "Candidates Added Trend", icon: "trending_up", c: "text-primary", series: addedSeries },
+              { title: "Offers Made Trend", icon: "assignment_turned_in", c: "text-secondary", series: offeredSeries },
+            ].map(card => (
+              <div key={card.title} className="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-lowest">
+                  <div className="flex items-center gap-2">
+                    <span className={`material-symbols-outlined ${card.c} text-sm`}>{card.icon}</span>
+                    <h3 className={`text-xs font-bold uppercase tracking-wider ${card.c}`}>{card.title}</h3>
+                  </div>
+                  <span className="text-[10px] text-outline font-medium">Monthly Breakdown</span>
+                </div>
+                <div className="p-6">
+                  <MiniBar data={card.series} height={110} />
+                </div>
               </div>
-              <MiniBar data={addedSeries} height={100} />
-            </div>
+            ))}
+          </div>
 
-            <div style={{ background: "white", borderRadius: 12, padding: 18, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-                <Icon n="trendUp" s={13} /> Offers Made
+          <div className="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-lowest">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-600 text-sm">person_pin</span>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600">Candidates Joined Trend</h3>
               </div>
-              <MiniBar data={offeredSeries} height={100} />
+              <span className="text-[10px] text-outline font-medium">Monthly Breakdown</span>
             </div>
-
-            <div style={{ background: "white", borderRadius: 12, padding: 18, boxShadow: "0 1px 3px rgba(0,0,0,.06)", border: "1px solid #f1f5f9" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-                <Icon n="trendUp" s={13} /> Candidates Joined
-              </div>
-              <MiniBar data={joinedSeries} height={100} />
+            <div className="p-6">
+              <MiniBar data={joinedSeries} height={110} />
             </div>
           </div>
-        </>
+        </div>
       )}
-
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
