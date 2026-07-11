@@ -8,6 +8,7 @@ import Masters from "./pages/Masters";
 import Audit from "./pages/Audit";
 import Companies from "./pages/Companies";
 import Report from "./pages/Report";
+import UserReport from "./pages/UserReport";
 
 // ─── SESSION EXPIRY MODAL ─────────────────────────────────────────────────────
 function SessionExpiredModal({ onDismiss }) {
@@ -115,6 +116,7 @@ export default function App() {
     // Recruiters get a personal Reports page instead of the shared Companies (client) page
     ...(user && user.role === "recruiter" ? [{ k: "reports", l: "Reports", i: "trendUp" }] : []),
     ...(user && user.role !== "recruiter" ? [{ k: "companies", l: "Companies", i: "chart" }] : []),
+    ...(user && user.role !== "recruiter" ? [{ k: "user-report", l: "User Report", i: "trendUp" }] : []),
     ...(user ? (user.role === "admin" ? [
       { k: "masters",  l: "Master Data",      i: "cog"   },
       { k: "audit",    l: "Audit Log",        i: "eye"   },
@@ -123,7 +125,8 @@ export default function App() {
 
   const PAGE_TITLES = {
     dashboard: "Dashboard", candidates: "Candidates", reports: "Reports",
-    companies: "Company Contacts", masters: "Master Data", audit: "Audit Log"
+    companies: "Company Contacts", masters: "Master Data", audit: "Audit Log",
+    "user-report": "User Report"
   };
 
   // Session time remaining display
@@ -230,6 +233,7 @@ export default function App() {
           {page === "reports"    && user.role === "recruiter" && <Report user={user} />}
           {page === "companies"  && user.role !== "recruiter" && <Companies user={user}
               openCompanyId={openCompanyId} onOpenedCompany={() => setOpenCompanyId(null)} />}
+          {page === "user-report" && user.role !== "recruiter" && <UserReport onNavigate={goTo} />}
           {page === "masters"    && user.role === "admin" && <Masters masters={masters} reload={loadMasters} currentUser={user} />}
           {page === "audit"      && user.role === "admin" && <Audit />}
         </div>
