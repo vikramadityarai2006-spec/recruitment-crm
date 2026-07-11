@@ -27,7 +27,7 @@ export const api = {
   getCandidates: (p = {}) => fetch(`${BASE_URL}/candidates?${new URLSearchParams(p)}`, { headers: H() }).then(handle),
   getCandidate: (id) => fetch(`${BASE_URL}/candidates?id=${id}`, { headers: H() }).then(handle),
   getReports: (months = 6) => fetch(`${BASE_URL}/reports?months=${months}`, { headers: H() }).then(handle),
-  getUserReport: () => fetch(`${BASE_URL}/user-report`, { headers: H() }).then(handle),
+  getUserReport: () => fetch(`${BASE_URL}/reports?scope=owners`, { headers: H() }).then(handle),
   createCandidate: (d) => fetch(`${BASE_URL}/candidates`, { method: "POST", headers: H(), body: JSON.stringify(d) }).then(handle),
   updateCandidate: (id, d) => fetch(`${BASE_URL}/candidates?id=${id}`, { method: "PUT", headers: H(), body: JSON.stringify(d) }).then(handle),
   deleteCandidate: (id) => fetch(`${BASE_URL}/candidates?delete=1`, { method: "POST", headers: H(), body: JSON.stringify({ id }) }).then(handle),
