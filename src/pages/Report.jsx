@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
-import { MiniBar } from "../components/UI";
+import { MiniBar, Donut } from "../components/UI";
 
 const RANGES = [
   { v: 1,  l: "Last Month" },
@@ -8,6 +8,81 @@ const RANGES = [
   { v: 6,  l: "Last 6 Months" },
   { v: 12, l: "Last 12 Months" },
 ];
+
+// Matches the color mapping used for Joining Status on the Dashboard and
+// the Candidates page, so a status means the same color everywhere.
+const STATUS_COLORS = { Joined: "#16a34a", Offered: "#E67E22", Backout: "#ba1a1a", Hold: "#F97316", "In Process": "#001c3e" };
+const RESIGNATION_COLORS = { Pending: "#E67E22", Accepted: "#16a34a", NA: "#737780" };
+const FALLBACK_COLORS = ["#001c3e", "#789ad3", "#E67E22", "#16a34a", "#ba1a1a", "#737780"];
+
+function BreakdownDonut({ title, icon, data, colorMap }) {
+  const colored = data.map((d, i) => ({ ...d, color: colorMap[d.label] || FALLBACK_COLORS[i % FALLBACK_COLORS.length] }));
+  const total = colored.reduce((a, b) => a + b.value, 0);
+  return (
+    <div className="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-outline-variant flex items-center gap-2 bg-surface-container-lowest">
+        <span className="material-symbols-outlined text-primary text-sm">{icon}</span>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-primary">{title}</h3>
+      </div>
+      <div className="p-6">
+        {total === 0 ? (
+          <div className="text-center text-text-tertiary text-sm py-6">No data for this period</div>
+        ) : (
+          <div className="flex items-center gap-6">
+            <Donut data={colored} size={100} />
+            <div className="flex-1 space-y-2 min-w-0">
+              {colored.map(d => (
+                <div key={d.label} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+                    <span className="text-xs font-semibold text-text-secondary truncate">{d.label}</span>
+                  </div>
+                  <span className="text-xs font-black text-primary shrink-0">{d.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ClientBreakdownCard({ data }) {
+  const max = Math.max(...data.map(d => d.value), 1);
+  return (
+    <div className="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-outline-variant flex items-center gap-2 bg-surface-container-lowest">
+        <span className="material-symbols-outlined text-primary text-sm">domain</span>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Client-wise Candidates</h3>
+      </div>
+      <div className="p-6">
+        {data.length === 0 ? (
+          <div className="text-center text-text-tertiary text-sm py-6">No data for this period</div>
+        ) : (
+          <div className="space-y-4">
+            {data.map((c, i) => (
+              <div key={c.label} className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-primary text-sm">domain</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-primary truncate">{c.label}</span>
+                    <span className="text-xs font-black text-primary ml-2 shrink-0">{c.value}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-surface-container rounded-full">
+                    <div className="h-full rounded-full bg-secondary" style={{ width: `${(c.value / max) * 100}%` }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Report() {
   const [range, setRange] = useState(6);
@@ -31,7 +106,6 @@ export default function Report() {
   }), { added: 0, offered: 0, joined: 0 });
 
   const rangeLabel = RANGES.find(r => r.v === range)?.l;
-  const addedSeries   = (data?.monthly || []).map(m => ({ label: m.label, value: m.added,   color: "#001c3e" }));
   const offeredSeries = (data?.monthly || []).map(m => ({ label: m.label, value: m.offered, color: "#E67E22" }));
   const joinedSeries  = (data?.monthly || []).map(m => ({ label: m.label, value: m.joined,  color: "#059669" }));
 
@@ -79,9 +153,6 @@ export default function Report() {
                   </div>
                 </div>
                 <div className={`text-3xl font-extrabold ${c.c}`}>{c.v ?? 0}</div>
-                <div className={`mt-4 h-1 w-12 ${c.bar}/20 rounded-full overflow-hidden`}>
-                  <div className={`h-full ${c.bar} w-2/3`}></div>
-                </div>
               </div>
             ))}
           </div>
@@ -101,37 +172,39 @@ export default function Report() {
             ))}
           </div>
 
-          {/* Monthly trend charts */}
-          <div className={`grid grid-cols-1 ${range <= 3 ? "" : "lg:grid-cols-2"} gap-6`}>
-            {[
-              { title: "Candidates Added Trend", icon: "trending_up", c: "text-primary", series: addedSeries },
-              { title: "Offers Made Trend", icon: "assignment_turned_in", c: "text-secondary", series: offeredSeries },
-            ].map(card => (
-              <div key={card.title} className="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-lowest">
-                  <div className="flex items-center gap-2">
-                    <span className={`material-symbols-outlined ${card.c} text-sm`}>{card.icon}</span>
-                    <h3 className={`text-xs font-bold uppercase tracking-wider ${card.c}`}>{card.title}</h3>
-                  </div>
-                  <span className="text-[10px] text-outline font-medium">Monthly Breakdown</span>
-                </div>
-                <div className="p-6">
-                  <MiniBar data={card.series} height={110} />
-                </div>
-              </div>
-            ))}
+          {/* Breakdowns for this period — mirrors the columns/filters on the Candidates page */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <BreakdownDonut title="Joining Status Breakdown" icon="verified" data={data.statusBreakdown || []} colorMap={STATUS_COLORS} />
+            <BreakdownDonut title="Resignation Status Breakdown" icon="person_off" data={data.resignationBreakdown || []} colorMap={RESIGNATION_COLORS} />
           </div>
+          <ClientBreakdownCard data={data.clientBreakdown || []} />
 
-          <div className="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-lowest">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-600 text-sm">person_pin</span>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600">Candidates Joined Trend</h3>
+          {/* Monthly trend charts — Offered & Joined only; Added trend removed */}
+          <div className={`grid grid-cols-1 ${range <= 3 ? "" : "lg:grid-cols-2"} gap-6`}>
+            <div className="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-lowest">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-sm">assignment_turned_in</span>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-secondary">Offers Made Trend</h3>
+                </div>
+                <span className="text-[10px] text-outline font-medium">Monthly Breakdown</span>
               </div>
-              <span className="text-[10px] text-outline font-medium">Monthly Breakdown</span>
+              <div className="p-6">
+                <MiniBar data={offeredSeries} height={110} />
+              </div>
             </div>
-            <div className="p-6">
-              <MiniBar data={joinedSeries} height={110} />
+
+            <div className="bg-white rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-outline-variant flex items-center justify-between bg-surface-container-lowest">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-sm">person_pin</span>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600">Candidates Joined Trend</h3>
+                </div>
+                <span className="text-[10px] text-outline font-medium">Monthly Breakdown</span>
+              </div>
+              <div className="p-6">
+                <MiniBar data={joinedSeries} height={110} />
+              </div>
             </div>
           </div>
         </div>
