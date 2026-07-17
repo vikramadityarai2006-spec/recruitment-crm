@@ -129,7 +129,7 @@ function MultiSelect({ label, icon, options, selected, onChange }) {
 }
 
 // ─── FILTER PANEL ─────────────────────────────────────────────────────────────
-function FilterPanel({ filters, masters, onApply, onClose }) {
+function FilterPanel({ filters, masters, onApply, onClose, user }) {
   const [local, setLocal] = useState({ ...filters });
   const [visible, setVisible] = useState(false);
   useEffect(() => { setTimeout(() => setVisible(true), 10); }, []);
@@ -171,7 +171,7 @@ function FilterPanel({ filters, masters, onApply, onClose }) {
         <div className="flex-1 overflow-auto px-6 pt-6 pb-5">
           <Section title="Organization & Team" icon="corporate_fare">
             <MultiSelect label="Client" icon="corporate_fare" options={masters.clients || []} selected={local.clients || []} onChange={v => set("clients", v)}/>
-            <MultiSelect label="Owner / Recruiter" icon="person" options={masters.owners || []} selected={local.owners || []} onChange={v => set("owners", v)}/>
+            {user?.role !== "recruiter" && <MultiSelect label="Owner / Recruiter" icon="person" options={masters.owners || []} selected={local.owners || []} onChange={v => set("owners", v)}/>}
           </Section>
           <Section title="Candidate Status" icon="verified">
             <MultiSelect label="Joining Status" icon="verified" options={masters.joiningStatus || []} selected={local.statuses || []} onChange={v => set("statuses", v)}/>
@@ -359,7 +359,7 @@ export default function Candidates({ masters, user, initialFilter, onConsumeInit
 
   return (
     <div className="max-w-[1600px] mx-auto">
-      {showFilters && <FilterPanel filters={filters} masters={masters} onApply={f => { setFilters(f); setPage(1); }} onClose={() => setShowFilters(false)}/>}
+      {showFilters && <FilterPanel filters={filters} masters={masters} user={user} onApply={f => { setFilters(f); setPage(1); }} onClose={() => setShowFilters(false)}/>}
 
       {/* Header */}
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
