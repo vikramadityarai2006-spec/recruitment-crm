@@ -41,7 +41,7 @@ export const api = {
   deleteStatusCode: (code) => fetch(`${BASE_URL}/masters?type=status-codes`, { method: "DELETE", headers: H(), body: JSON.stringify({ code }) }).then(handle),
 
   // Dashboard, Audit & Alerts
-  getDashboard: () => fetch(`${BASE_URL}/dashboard`, { headers: H() }).then(handle),
+  getDashboard: (p = {}) => fetch(`${BASE_URL}/dashboard?${new URLSearchParams(p)}`, { headers: H() }).then(handle),
   getAudit: () => fetch(`${BASE_URL}/audit`, { headers: H() }).then(handle),
   getAlerts: () => fetch(`${BASE_URL}/alerts`, { headers: H() }).then(handle),
 

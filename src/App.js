@@ -9,6 +9,7 @@ import Audit from "./pages/Audit";
 import Companies from "./pages/Companies";
 import Report from "./pages/Report";
 import UserReport from "./pages/UserReport";
+import ClientDetail from "./pages/ClientDetail";
 
 // ─── SESSION EXPIRY MODAL ─────────────────────────────────────────────────────
 function SessionExpiredModal({ onDismiss }) {
@@ -55,13 +56,16 @@ export default function App() {
   const [openCandidateId, setOpenCandidateId] = useState(null);
   const [openCompanyId, setOpenCompanyId] = useState(null);
   const [pendingFilter, setPendingFilter] = useState(null);
+  const [clientCtx, setClientCtx] = useState(null);
 
   // Single navigation entry point used by Dashboard (KPI clicks, alert
   // "Open" links, etc). `filter` can be a plain candidate-filter object, or
   // { openId } to jump straight into a specific record's edit form.
   const goTo = useCallback((page, filter) => {
     setPage(page);
-    if (filter && filter.openId !== undefined) {
+    if (page === "client-detail" && filter && filter.clientName) {
+      setClientCtx({ clientName: filter.clientName, from: filter.from || "", to: filter.to || "" });
+    } else if (filter && filter.openId !== undefined) {
       if (page === "candidates") setOpenCandidateId(filter.openId);
       if (page === "companies") setOpenCompanyId(filter.openId);
     } else if (filter) {
@@ -126,7 +130,7 @@ export default function App() {
   const PAGE_TITLES = {
     dashboard: "Dashboard", candidates: "Candidates", reports: "Reports",
     companies: "Company Contacts", masters: "Master Data", audit: "Audit Log",
-    "user-report": "User Report"
+    "user-report": "User Report", "client-detail": "Client Detail"
   };
 
   // Session time remaining display
@@ -234,6 +238,7 @@ export default function App() {
           {page === "companies"  && user.role !== "recruiter" && <Companies user={user}
               openCompanyId={openCompanyId} onOpenedCompany={() => setOpenCompanyId(null)} />}
           {page === "user-report" && user.role !== "recruiter" && <UserReport onNavigate={goTo} />}
+          {page === "client-detail" && clientCtx && <ClientDetail clientName={clientCtx.clientName} from={clientCtx.from} to={clientCtx.to} onNavigate={goTo} />}
           {page === "masters"    && user.role === "admin" && <Masters masters={masters} reload={loadMasters} currentUser={user} />}
           {page === "audit"      && user.role === "admin" && <Audit />}
         </div>

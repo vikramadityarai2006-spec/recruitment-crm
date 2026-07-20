@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { api } from "../api";
 import { fmtD } from "../utils/constants";
 import { ContactButtons } from "../components/UI";
@@ -253,37 +253,55 @@ function KPICard({ icon, iconBg, iconColor, label, value, bar, barColor, badge, 
   );
 }
 
-// ─── TOTAL CANDIDATES CARD (3M / 6M / 12M / All) ──────────────────────────────
-function TotalCandidatesCard({ periods, onOpen }) {
-  const [range, setRange] = useState("total"); // "last3" | "last6" | "last12" | "total"
-  const tabs = [
-    { k: "last3",  l: "3M" },
-    { k: "last6",  l: "6M" },
-    { k: "last12", l: "12M" },
-    { k: "total",  l: "All" },
-  ];
+// ─── TOTAL CANDIDATES CARD (in-range total) ───────────────────────────────────
+function TotalCandidatesCard({ total, rangeLabel, onOpen }) {
   return (
     <div className="col-span-1 sm:col-span-2 bg-primary rounded-3xl p-6 relative overflow-hidden text-white shadow-2xl shadow-primary/30">
       <div className="absolute -right-5 -top-5 w-32 h-32 bg-white/5 rounded-full"/>
       <div className="relative z-10 flex flex-col h-full justify-between">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-black uppercase tracking-[0.15em] opacity-60">Candidate Database</span>
-          <div className="bg-white/10 rounded-lg p-1 flex gap-1">
-            {tabs.map(t => (
-              <button key={t.k} onClick={()=>setRange(t.k)}
-                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors ${range===t.k ? "bg-secondary" : "hover:bg-white/5"}`}>
-                {t.l}
-              </button>
-            ))}
-          </div>
+          <span className="bg-white/10 rounded-lg px-2.5 py-1 text-[10px] font-bold flex items-center gap-1.5">
+            <M n="calendar_month" className="text-sm"/> {rangeLabel}
+          </span>
         </div>
         <div>
-          <h2 onClick={()=>onOpen(range)} className="text-5xl font-black tracking-tighter mt-4 cursor-pointer">
-            {(periods[range]||0).toLocaleString("en-IN")}
+          <h2 onClick={onOpen} className="text-5xl font-black tracking-tighter mt-4 cursor-pointer">
+            {(total||0).toLocaleString("en-IN")}
           </h2>
-          <p className="text-white/40 text-xs font-medium mt-1">Verified talent profiles in system</p>
+          <p className="text-white/40 text-xs font-medium mt-1">
+            {rangeLabel === "All time" ? "Verified talent profiles in system" : "Candidates added in selected range"}
+          </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── DATE RANGE CONTROL (From – To) ───────────────────────────────────────────
+function DateRangeControl({ range, onChange, busy }) {
+  const set = (k, v) => onChange({ ...range, [k]: v });
+  const clear = () => onChange({ from: "", to: "" });
+  const active = range.from || range.to;
+  const inputCls = "px-2.5 py-2 rounded-lg border border-outline-variant bg-white text-primary text-xs font-semibold outline-none focus:border-primary cursor-pointer";
+  return (
+    <div className="flex items-center gap-2 flex-wrap bg-white border border-outline-variant rounded-xl px-3 py-2">
+      <M n="date_range" className={`text-lg ${active ? "text-secondary" : "text-text-tertiary"}`} fill={active ? 1 : 0}/>
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] font-black uppercase tracking-wider text-text-tertiary">From</label>
+        <input type="date" value={range.from} max={range.to || undefined} onChange={e => set("from", e.target.value)} className={inputCls}/>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] font-black uppercase tracking-wider text-text-tertiary">To</label>
+        <input type="date" value={range.to} min={range.from || undefined} onChange={e => set("to", e.target.value)} className={inputCls}/>
+      </div>
+      {active && (
+        <button onClick={clear} title="Reset to all-time"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-black text-text-secondary bg-surface-container hover:bg-surface-container-high transition-colors">
+          <M n="restart_alt" className="text-sm"/> All time
+        </button>
+      )}
+      {busy && <div className="w-4 h-4 border-2 border-surface-container-high border-t-secondary rounded-full animate-spin"/>}
     </div>
   );
 }
@@ -339,20 +357,41 @@ export default function Dashboard({ onNavigate }) {
   const [data, setData]       = useState(null);
   const [alerts, setAlerts]   = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError]     = useState("");
   const [showDrawer, setShowDrawer] = useState(false);
+  const [range, setRange]     = useState({ from: "", to: "" }); // From–To (empty = all-time)
+
+  const loadDashboard = useCallback((r) => {
+    const p = {};
+    if (r.from) p.from = r.from;
+    if (r.to)   p.to = r.to;
+    return api.getDashboard(p).then(dash => {
+      if (dash && dash.error) { setError(dash.error); return; }
+      setData(dash); setError("");
+    });
+  }, []);
 
   const refresh = () => {
-    Promise.all([api.getDashboard(), api.getAlerts()])
-      .then(([dash, al]) => {
-        setData(dash); setLoading(false);
-        if (al && !al.error) setAlerts(al);
-      })
-      .catch(e => { setError(e.message); setLoading(false); });
+    setRefreshing(true);
+    Promise.all([
+      loadDashboard(range),
+      api.getAlerts().then(al => { if (al && !al.error) setAlerts(al); }),
+    ]).catch(e => setError(e.message)).finally(() => setRefreshing(false));
   };
 
+  // Refetch the whole dashboard whenever the date range changes.
   useEffect(() => {
-    api.getDashboard().then(dash => { setData(dash); setLoading(false); }).catch(e => { setError(e.message); setLoading(false); });
+    const initial = data === null;
+    initial ? setLoading(true) : setRefreshing(true);
+    loadDashboard(range)
+      .catch(e => setError(e.message))
+      .finally(() => { setLoading(false); setRefreshing(false); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, loadDashboard]);
+
+  // Alerts load once on mount (not affected by the date range).
+  useEffect(() => {
     api.getAlerts().then(al => {
       if (al && !al.error) {
         setAlerts(al);
@@ -373,6 +412,12 @@ export default function Dashboard({ onNavigate }) {
 
   const { total=0, offered=0, joined=0, resPending=0, thisMonth=0, nextMonth=0, funnel, statusGroups=[], clientGroups=[], months=[],
           candidatesByPeriod = { last3:0, last6:0, last12:0, total:0 }, clientStatusBreakdown=[] } = data;
+
+  const fmtRange = (d) => { try { return new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }); } catch { return d; } };
+  const rangeLabel = (!range.from && !range.to) ? "All time"
+    : range.from && range.to ? `${fmtRange(range.from)} → ${fmtRange(range.to)}`
+    : range.from ? `Since ${fmtRange(range.from)}`
+    : `Until ${fmtRange(range.to)}`;
 
   const monthRange = (offset=0) => {
     const now=new Date(); const s=new Date(now.getFullYear(),now.getMonth()+offset,1); const e=new Date(now.getFullYear(),now.getMonth()+offset+1,0);
@@ -418,6 +463,7 @@ export default function Dashboard({ onNavigate }) {
           <p className="text-text-tertiary text-lg font-medium mt-1">Analyze your recruitment funnel and candidate trends.</p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
+          <DateRangeControl range={range} onChange={setRange} busy={refreshing}/>
           {alertCount > 0 && (
             <button onClick={()=>setShowDrawer(true)}
               className="relative flex items-center gap-2 px-6 py-3.5 bg-white border-2 border-secondary rounded-xl cursor-pointer text-secondary font-extrabold hover:bg-orange-50 transition-all">
@@ -438,7 +484,7 @@ export default function Dashboard({ onNavigate }) {
 
       {/* KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-5 mb-10">
-        <TotalCandidatesCard periods={candidatesByPeriod} onOpen={()=>nav("candidates", {})} />
+        <TotalCandidatesCard total={total} rangeLabel={rangeLabel} onOpen={()=>nav("candidates", {})} />
         {kpiCards.map(c => <KPICard key={c.label} {...c}/>)}
       </div>
 
@@ -535,7 +581,7 @@ export default function Dashboard({ onNavigate }) {
                   const count = c._count?._all||0;
                   const pct = Math.round((count/maxClient)*100);
                   return (
-                    <div key={c.clientName} onClick={()=>nav("candidates",{clients:[c.clientName]})}
+                    <div key={c.clientName} onClick={()=>nav("client-detail",{ clientName:c.clientName, from:range.from, to:range.to })}
                       className="group flex items-center justify-between p-4 -m-4 rounded-2xl hover:bg-surface-container-low cursor-pointer transition-all">
                       <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${i===0?"bg-orange-50":"bg-primary/5"}`}>

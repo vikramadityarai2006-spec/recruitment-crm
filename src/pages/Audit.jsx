@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
 import { api } from "../api";
 
-const ACTION_STYLE = {
-  Created: { bg: "bg-green-100", c: "text-green-700", icon: "add_circle" },
-  Updated: { bg: "bg-yellow-100", c: "text-yellow-800", icon: "edit_square" },
-  Deleted: { bg: "bg-red-100", c: "text-red-800", icon: "delete" },
+// Resolve a colour + icon for any action string (matches on keywords so new
+// action types — Login, User Created, Company Updated, Master Deleted, etc. —
+// are styled automatically without needing an exact map entry).
+const resolveStyle = (action) => {
+  const a = (action || "").toLowerCase();
+  if (a.includes("login"))                                        return { bg: "bg-blue-100",   c: "text-blue-700",   icon: "login" };
+  if (a.includes("delet") || a.includes("deactiv") || a.includes("removed")) return { bg: "bg-red-100", c: "text-red-800", icon: "delete" };
+  if (a.includes("bulk") || a.includes("email") || a.includes("whatsapp") || a.includes("message")) return { bg: "bg-purple-100", c: "text-purple-700", icon: "send" };
+  if (a.includes("reassign") || a.includes("updat") || a.includes("edit"))   return { bg: "bg-yellow-100", c: "text-yellow-800", icon: "edit_square" };
+  if (a.includes("creat") || a.includes("added") || a.includes("saved") || a.includes("activated")) return { bg: "bg-green-100", c: "text-green-700", icon: "add_circle" };
+  return { bg: "bg-gray-100", c: "text-gray-600", icon: "radio_button_checked" };
 };
-const DEFAULT_STYLE = { bg: "bg-gray-100", c: "text-gray-600", icon: "radio_button_checked" };
 
 export default function Audit() {
   const [logs, setLogs] = useState([]);
@@ -69,7 +75,7 @@ export default function Audit() {
               </thead>
               <tbody className="divide-y divide-outline-variant">
                 {logs.map((l, i) => {
-                  const s = ACTION_STYLE[l.action] || DEFAULT_STYLE;
+                  const s = resolveStyle(l.action);
                   return (
                     <tr key={i} className="hover:bg-surface-container-low transition-colors">
                       <td className="px-lg py-md text-text-tertiary font-mono text-[11px] whitespace-nowrap">
