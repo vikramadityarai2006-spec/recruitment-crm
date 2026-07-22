@@ -65,7 +65,9 @@ function DonutChart({ data = [], total }) {
 }
 
 // ─── ALERTS DRAWER ────────────────────────────────────────────────────────────
-function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate }) {
+function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate, hideAgreements = false }) {
+  // Recruiters never see agreement alerts (no Companies access).
+  const agreements = hideAgreements ? [] : (alerts?.expiringAgreements || []);
   const [busyId, setBusyId] = useState(null);
   const [doneIds, setDoneIds] = useState(() => new Set());
 
@@ -108,7 +110,7 @@ function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate }) {
   );
 
   const [activeTab, setActiveTab] = useState(() => {
-    if (alerts?.expiringAgreements?.length) return "agreements";
+    if (agreements.length) return "agreements";
     if (alerts?.upcomingDOJ?.length) return "doj";
     return "resignations";
   });
@@ -118,7 +120,7 @@ function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate }) {
   const close = () => { setVisible(false); setTimeout(onClose, 300); };
 
   const tabs = [
-    { k: "agreements", l: "Agreements", icon: "description", count: alerts?.expiringAgreements?.length || 0 },
+    { k: "agreements", l: "Agreements", icon: "description", count: agreements.length },
     { k: "doj",        l: "DOJ",        icon: "event",       count: alerts?.upcomingDOJ?.length || 0 },
     { k: "resignations",l:"Resign",     icon: "person_off",  count: alerts?.pendingResignations?.length || 0 },
   ].filter(t => t.count > 0);
@@ -132,7 +134,7 @@ function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate }) {
           <div>
             <h3 className="text-xl font-black tracking-tight">Smart Notifications</h3>
             <p className="text-white/60 text-xs font-medium mt-1">
-              {(alerts?.expiringAgreements?.length||0)+(alerts?.upcomingDOJ?.length||0)+(alerts?.pendingResignations?.length||0)} critical actions pending your review
+              {agreements.length+(alerts?.upcomingDOJ?.length||0)+(alerts?.pendingResignations?.length||0)} critical actions pending your review
             </p>
           </div>
           <button onClick={close} className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full hover:bg-white/20 transition-all">
@@ -154,7 +156,7 @@ function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate }) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-surface-container-low">
-          {activeTab === "agreements" && (alerts?.expiringAgreements||[]).map(a => (
+          {activeTab === "agreements" && agreements.map(a => (
             <div key={a.id} className={`bg-white p-5 rounded-2xl border-l-4 shadow-sm ${a.isExpired ? "border-error" : "border-secondary"}`}>
               <div className="flex items-start gap-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${a.isExpired ? "bg-red-50" : "bg-orange-50"}`}>
@@ -439,7 +441,7 @@ function ClientEngagement({ rows, onPick, onOpenClient }) {
 }
 
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
-export default function Dashboard({ onNavigate }) {
+export default function Dashboard({ onNavigate, user }) {
   const [data, setData]       = useState(null);
   const [alerts, setAlerts]   = useState(null);
   const [loading, setLoading] = useState(true);
@@ -511,10 +513,14 @@ export default function Dashboard({ onNavigate }) {
   };
   const nav = (page, filter) => onNavigate && onNavigate(page, filter);
 
+  const isRecruiter = user?.role === "recruiter";
+
   const kpiCards = [
     { icon:"assignment_turned_in", iconBg:"bg-orange-50",  iconColor:"text-secondary", label:"Offered",            value:offered,    bar:40, barColor:"bg-secondary",  badge:"+5%",       badgeBg:"bg-green-50",  badgeColor:"text-green-600", onClick:()=>nav("candidates", {statuses:["Offered"]}) },
     { icon:"verified",             iconBg:"bg-green-50",   iconColor:"text-green-600", label:"Joined",             value:joined,     bar:65, barColor:"bg-green-600",  badge:"+8%",       badgeBg:"bg-green-50",  badgeColor:"text-green-600", onClick:()=>nav("candidates", {statuses:["Joined"]}) },
-    { icon:"gavel",                iconBg:"bg-red-50",     iconColor:"text-error",     label:"Agreements",        value:alerts?.expiringAgreements?.length||0, bar:30, barColor:"bg-error", badge:"Action",  badgeBg:"bg-red-100",   badgeColor:"text-error",      onClick:()=>nav("companies") },
+    // Agreements are a Companies-page concern. Recruiters have no Companies
+    // access (the API returns them no agreements), so the card is hidden for them.
+    ...(isRecruiter ? [] : [{ icon:"gavel", iconBg:"bg-red-50", iconColor:"text-error", label:"Agreements", value:alerts?.expiringAgreements?.length||0, bar:30, barColor:"bg-error", badge:"Action", badgeBg:"bg-red-100", badgeColor:"text-error", onClick:()=>nav("companies") }]),
     { icon:"calendar_today",       iconBg:"bg-surface-container", iconColor:"text-primary", label:"Joining This Month", value:thisMonth,  bar:55, barColor:"bg-primary",    badge:"This month", badgeBg:"bg-surface-container", badgeColor:"text-text-secondary", onClick:()=>nav("candidates", {actualFrom:monthRange(0).from, actualTo:monthRange(0).to}) },
     { icon:"cancel_presentation",  iconBg:"bg-surface-container", iconColor:"text-text-secondary", label:"Resignations", value:resPending, bar:15, barColor:"bg-text-tertiary", badge:resPending>0?"Alert":"Clear", badgeBg:resPending>0?"bg-orange-100":"bg-green-50", badgeColor:resPending>0?"text-secondary":"text-green-600", onClick:()=>nav("candidates", {resignations:["Pending"]}) },
   ];
@@ -526,7 +532,7 @@ export default function Dashboard({ onNavigate }) {
 
   const monthData = (months||[]).map(m=>({ label:m.label, value:m.value }));
 
-  const alertCount = (alerts?.expiringAgreements?.length||0)+(alerts?.upcomingDOJ?.length||0)+(alerts?.pendingResignations?.length||0);
+  const alertCount = (isRecruiter ? 0 : (alerts?.expiringAgreements?.length||0))+(alerts?.upcomingDOJ?.length||0)+(alerts?.pendingResignations?.length||0);
 
   const funnelStages = [
     { label:"Active Pipeline Pool", value:total,  className:"bg-primary",   onClick:()=>nav("candidates",{}) },
@@ -682,7 +688,7 @@ export default function Dashboard({ onNavigate }) {
         </div>
       </div>
 
-      {showDrawer && alerts && <AlertsDrawer alerts={alerts} onClose={()=>setShowDrawer(false)} onUpdated={refresh} onNavigate={onNavigate}/>}
+      {showDrawer && alerts && <AlertsDrawer alerts={alerts} hideAgreements={isRecruiter} onClose={()=>setShowDrawer(false)} onUpdated={refresh} onNavigate={onNavigate}/>}
     </div>
   );
 }
