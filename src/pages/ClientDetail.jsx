@@ -41,7 +41,7 @@ export default function ClientDetail({ clientName, from = "", to = "", onNavigat
 
   useEffect(() => { load(); }, [load]);
 
-  const rangeLabel = (!from && !to) ? "All time" : `${from || "…"} → ${to || "…"}`;
+  const rangeLabel = (!from && !to) ? "All time" : `Offer month ${from || "…"} → ${to || "…"}`;
   const convRate = row && row.offered > 0 ? Math.round((row.joined / row.offered) * 100) : 0;
 
   return (

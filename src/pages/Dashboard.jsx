@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "../api";
 import { fmtD } from "../utils/constants";
 import { ContactButtons } from "../components/UI";
@@ -270,7 +270,7 @@ function TotalCandidatesCard({ total, rangeLabel, onOpen }) {
             {(total||0).toLocaleString("en-IN")}
           </h2>
           <p className="text-white/40 text-xs font-medium mt-1">
-            {rangeLabel === "All time" ? "Verified talent profiles in system" : "Candidates added in selected range"}
+            {rangeLabel === "All time" ? "Verified talent profiles in system" : "Candidates by offer month in range"}
           </p>
         </div>
       </div>
@@ -287,6 +287,7 @@ function DateRangeControl({ range, onChange, busy }) {
   return (
     <div className="flex items-center gap-2 flex-wrap bg-white border border-outline-variant rounded-xl px-3 py-2">
       <M n="date_range" className={`text-lg ${active ? "text-secondary" : "text-text-tertiary"}`} fill={active ? 1 : 0}/>
+      <span className="text-[10px] font-black uppercase tracking-wider text-text-tertiary hidden lg:inline" title="Filters the dashboard by candidate offer month">Offer&nbsp;month</span>
       <div className="flex items-center gap-1.5">
         <label className="text-[10px] font-black uppercase tracking-wider text-text-tertiary">From</label>
         <input type="date" value={range.from} max={range.to || undefined} onChange={e => set("from", e.target.value)} className={inputCls}/>
@@ -306,48 +307,133 @@ function DateRangeControl({ range, onChange, busy }) {
   );
 }
 
-// ─── PER-COMPANY STATUS BREAKDOWN (Pipeline / Red / Backout / Joined / Offered) ─
-function ClientStatusTable({ rows, onCellClick }) {
-  const cols = [
-    { k:"pipeline", l:"Pipeline", head:"text-primary",       badge:(v)=> v>0 ? "bg-primary text-white shadow-sm cursor-pointer" : "bg-surface-container-lowest text-outline-variant border" },
-    { k:"red",      l:"Red",      head:"text-error",         badge:(v)=> v>0 ? "bg-red-100 text-error" : "bg-surface-container-lowest text-outline-variant border" },
-    { k:"backout",  l:"Backout",  head:"text-text-tertiary", badge:(v)=> v>0 ? "bg-surface-container text-text-tertiary" : "bg-surface-container-lowest text-outline-variant border" },
-    { k:"joined",   l:"Joined",   head:"text-green-600",     badge:(v)=> v>0 ? "bg-green-600 text-white" : "bg-surface-container-lowest text-outline-variant border" },
-    { k:"offered",  l:"Offered",  head:"text-secondary",     badge:(v)=> v>0 ? "bg-secondary text-white shadow-sm" : "bg-surface-container-lowest text-outline-variant border" },
-  ];
-  if (!rows.length) {
-    return <div className="text-center text-text-tertiary py-10 text-sm">No client data yet</div>;
-  }
+// ─── STATUS BREAKDOWN STRIP (Pipeline / Red / Backout / Joined / Offered) ──────
+// Rendered inside an expanded client row — mirrors the old Portfolio Health
+// columns, but scoped to a single company.
+const STATUS_COLS = [
+  { k:"pipeline", l:"Pipeline", status:null,      on:"bg-primary text-white",              bar:"bg-primary" },
+  { k:"red",      l:"Red",      status:"Red",     on:"bg-red-100 text-error",              bar:"bg-error" },
+  { k:"backout",  l:"Backout",  status:"Backout", on:"bg-surface-container text-text-secondary", bar:"bg-text-tertiary" },
+  { k:"joined",   l:"Joined",   status:"Joined",  on:"bg-green-600 text-white",            bar:"bg-green-600" },
+  { k:"offered",  l:"Offered",  status:"Offered", on:"bg-secondary text-white",            bar:"bg-secondary" },
+];
+
+function StatusBreakdown({ row, onPick }) {
+  const max = Math.max(...STATUS_COLS.map(c => row[c.k] || 0), 1);
   return (
-    <div className="overflow-x-auto -mx-8">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="bg-surface-container-low border-y border-outline-variant">
-            <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-primary">Client Portfolio</th>
-            {cols.map(c=>(
-              <th key={c.k} className={`px-4 py-4 text-[10px] font-black uppercase tracking-widest text-center ${c.head}`}>{c.l}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-surface-container">
-          {rows.map(row=>(
-            <tr key={row.clientName} className="hover:bg-surface-container-lowest transition-colors">
-              <td className="px-8 py-6 font-extrabold text-primary truncate max-w-[200px]">{row.clientName}</td>
-              {cols.map(c=>{
-                const val = row[c.k]||0;
-                return (
-                  <td key={c.k} className="px-4 py-6 text-center">
-                    <span onClick={()=>onCellClick(row.clientName, c.k)}
-                      className={`inline-flex items-center justify-center min-w-[28px] px-3 py-1 rounded-lg text-xs font-black ${c.badge(val)}`}>
-                      {val}
-                    </span>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="grid grid-cols-5 gap-2 sm:gap-3">
+      {STATUS_COLS.map(c => {
+        const val = row[c.k] || 0;
+        return (
+          <button key={c.k} onClick={(e) => { e.stopPropagation(); onPick(c.status); }}
+            title={`${val} ${c.l}`}
+            className="group/cell flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-white transition-colors">
+            {/* mini bar */}
+            <div className="w-full h-14 flex items-end justify-center">
+              <div className={`w-full rounded-t-md transition-all ${val > 0 ? c.bar : "bg-surface-container"} group-hover/cell:opacity-80`}
+                style={{ height: `${val > 0 ? Math.max((val / max) * 100, 8) : 4}%` }}/>
+            </div>
+            <span className={`inline-flex items-center justify-center min-w-[26px] px-2 py-0.5 rounded-lg text-[11px] font-black ${val > 0 ? c.on : "bg-surface-container-lowest text-outline-variant border border-outline-variant"}`}>
+              {val}
+            </span>
+            <span className="text-[9px] font-black uppercase tracking-wider text-text-tertiary">{c.l}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── TOP CLIENT ENGAGEMENT (all companies, expandable) ────────────────────────
+function ClientEngagement({ rows, onPick, onOpenClient }) {
+  const [query, setQuery] = useState("");
+  const [openName, setOpenName] = useState(null);
+
+  const filtered = rows.filter(r => (r.clientName || "").toLowerCase().includes(query.trim().toLowerCase()));
+  const maxTotal = Math.max(...rows.map(r => r.total || 0), 1);
+
+  return (
+    <div className="bg-white p-8 rounded-[2.5rem] border border-outline-variant shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h4 className="text-2xl font-extrabold text-primary tracking-tight">Top Client Engagement</h4>
+          <p className="text-text-tertiary font-medium mt-1 text-sm">
+            Click any company to see its Pipeline, Red, Backout, Joined and Offered breakdown.
+          </p>
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-widest text-text-tertiary bg-surface-container px-3 py-1.5 rounded-lg whitespace-nowrap">
+          {rows.length} {rows.length === 1 ? "Company" : "Companies"}
+        </span>
+      </div>
+
+      {rows.length > 6 && (
+        <div className="relative mb-4">
+          <M n="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-text-tertiary"/>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search company…"
+            className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-sm font-semibold text-primary outline-none focus:border-primary focus:bg-white transition-colors"/>
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <div className="text-center text-text-tertiary py-10 text-sm">No client data yet</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center text-text-tertiary py-10 text-sm">No company matches “{query}”</div>
+      ) : (
+        <div className="divide-y divide-surface-container max-h-[560px] overflow-y-auto -mx-2 px-2">
+          {filtered.map((c, i) => {
+            const isOpen = openName === c.clientName;
+            const pct = Math.round(((c.total || 0) / maxTotal) * 100);
+            const isTop = i === 0 && !query;
+            return (
+              <div key={c.clientName} className="py-2">
+                {/* Row header — click to expand */}
+                <div onClick={() => setOpenName(isOpen ? null : c.clientName)}
+                  className={`group flex items-center justify-between gap-4 p-4 rounded-2xl cursor-pointer transition-all ${isOpen ? "bg-surface-container-low" : "hover:bg-surface-container-low"}`}>
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isTop ? "bg-orange-50" : "bg-primary/5"}`}>
+                      <M n="domain" className={isTop ? "text-secondary" : "text-primary"}/>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black text-primary truncate max-w-[180px] sm:max-w-[260px]">{c.clientName}</p>
+                      <p className="text-xs font-medium text-text-tertiary">
+                        {isTop ? "Tier 1 Strategic Partner" : "Active Client"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      <p className="text-lg font-black text-primary">
+                        {(c.total || 0)} <span className="text-[10px] text-text-tertiary font-bold">CANDIDATES</span>
+                      </p>
+                      <div className="w-24 h-1.5 bg-surface-container rounded-full mt-1.5 ml-auto">
+                        <div className={`h-full rounded-full ${isTop ? "bg-secondary" : "bg-primary"}`} style={{ width: `${pct}%` }}/>
+                      </div>
+                    </div>
+                    <M n={isOpen ? "expand_less" : "expand_more"}
+                      className={`text-2xl transition-colors ${isOpen ? "text-primary" : "text-outline-variant group-hover:text-primary"}`}/>
+                  </div>
+                </div>
+
+                {/* Expanded breakdown */}
+                {isOpen && (
+                  <div className="mt-1 mb-2 mx-2 p-5 bg-surface-container-low rounded-2xl border border-outline-variant">
+                    <StatusBreakdown row={c} onPick={(status) => onPick(c.clientName, status)}/>
+                    <div className="flex items-center justify-between gap-3 mt-5 pt-4 border-t border-surface-container flex-wrap">
+                      <p className="text-[11px] font-semibold text-text-tertiary">
+                        Click a bar to open that candidate list.
+                      </p>
+                      <button onClick={(e) => { e.stopPropagation(); onOpenClient(c.clientName); }}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-xl text-[11px] font-black hover:-translate-y-0.5 transition-all shadow-md shadow-primary/20">
+                        <M n="open_in_new" className="text-sm"/> Full client page
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -410,8 +496,8 @@ export default function Dashboard({ onNavigate }) {
   if (error) return <div className="text-error bg-error-bg p-5 rounded-2xl">Error: {error}</div>;
   if (!data) return null;
 
-  const { total=0, offered=0, joined=0, resPending=0, thisMonth=0, nextMonth=0, funnel, statusGroups=[], clientGroups=[], months=[],
-          candidatesByPeriod = { last3:0, last6:0, last12:0, total:0 }, clientStatusBreakdown=[] } = data;
+  const { total=0, offered=0, joined=0, resPending=0, thisMonth=0, statusGroups=[], months=[],
+          clientStatusBreakdown=[] } = data;
 
   const fmtRange = (d) => { try { return new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }); } catch { return d; } };
   const rangeLabel = (!range.from && !range.to) ? "All time"
@@ -437,8 +523,6 @@ export default function Dashboard({ onNavigate }) {
   const donutData = (statusGroups||[]).filter(x=>x.joiningStatus&&x._count?._all>0).map(x=>({ label:x.joiningStatus, value:x._count._all, color:statusColors[x.joiningStatus]||"#737780" }));
   const donutTotal = donutData.reduce((a,b)=>a+b.value,0);
 
-  const topClients = (clientGroups||[]).filter(x=>x.clientName).slice(0,5);
-  const maxClient = Math.max(...topClients.map(x=>x._count?._all||0),1);
 
   const monthData = (months||[]).map(m=>({ label:m.label, value:m.value }));
 
@@ -569,41 +653,14 @@ export default function Dashboard({ onNavigate }) {
       {/* Bottom Secondary Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        {/* Top Clients */}
-        <div className="bg-white p-8 rounded-[2.5rem] border border-outline-variant shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <h4 className="text-2xl font-extrabold text-primary tracking-tight">Top Client Engagement</h4>
-          </div>
-          {topClients.length===0
-            ? <div className="text-center text-text-tertiary py-10 text-sm">No client data yet</div>
-            : <div className="space-y-6">
-                {topClients.map((c,i)=>{
-                  const count = c._count?._all||0;
-                  const pct = Math.round((count/maxClient)*100);
-                  return (
-                    <div key={c.clientName} onClick={()=>nav("client-detail",{ clientName:c.clientName, from:range.from, to:range.to })}
-                      className="group flex items-center justify-between p-4 -m-4 rounded-2xl hover:bg-surface-container-low cursor-pointer transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${i===0?"bg-orange-50":"bg-primary/5"}`}>
-                          <M n="domain" className={i===0?"text-secondary":"text-primary"}/>
-                        </div>
-                        <div>
-                          <p className="font-black text-primary truncate max-w-[150px]">{c.clientName}</p>
-                          <p className="text-xs font-medium text-text-tertiary">{i===0?"Tier 1 Strategic Partner":"Active Client"}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-black text-primary">{count} <span className="text-[10px] text-text-tertiary font-bold">HIRES</span></p>
-                        <div className="w-24 h-1.5 bg-surface-container rounded-full mt-1.5">
-                          <div className={`h-full rounded-full ${i===0?"bg-secondary":"bg-primary"}`} style={{ width: `${pct}%` }}/>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-          }
-        </div>
+        {/* Top Clients — all companies, expandable to status breakdown */}
+        <ClientEngagement
+          rows={clientStatusBreakdown}
+          onPick={(clientName, status) =>
+            nav("candidates", status ? { clients:[clientName], statuses:[status] } : { clients:[clientName] })}
+          onOpenClient={(clientName) =>
+            nav("client-detail", { clientName, from: range.from, to: range.to })}
+        />
 
         {/* Monthly Volume */}
         <div className="bg-white p-8 rounded-[2.5rem] border border-outline-variant shadow-sm">
@@ -623,21 +680,6 @@ export default function Dashboard({ onNavigate }) {
             : <BarChart data={monthData}/>
           }
         </div>
-      </div>
-
-      {/* Full Width Table -- synced live with candidate data */}
-      <div className="bg-white p-8 rounded-[2.5rem] border border-outline-variant shadow-sm mt-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <div>
-            <h4 className="text-2xl font-extrabold text-primary tracking-tight">Company Portfolio Health</h4>
-            <p className="text-text-tertiary font-medium mt-1">Pipeline, Red-flagged, Backout, Joined and Offered candidates per client.</p>
-          </div>
-        </div>
-        <ClientStatusTable rows={clientStatusBreakdown} onCellClick={(clientName,statusKey)=>{
-          if (statusKey==="pipeline") { nav("candidates", { clients:[clientName] }); return; }
-          const label = { red:"Red", backout:"Backout", joined:"Joined", offered:"Offered" }[statusKey];
-          nav("candidates", { clients:[clientName], statuses:[label] });
-        }}/>
       </div>
 
       {showDrawer && alerts && <AlertsDrawer alerts={alerts} onClose={()=>setShowDrawer(false)} onUpdated={refresh} onNavigate={onNavigate}/>}
