@@ -169,8 +169,17 @@ export default function CallLog({ user }) {
   const [filter, setFilter]   = useState("all");
   const [search, setSearch]   = useState("");
   const [active, setActive]   = useState(null);
+  const [collapsed, setCollapsed] = useState(() => new Set());
 
-  const canEdit = user?.role !== "viewer";
+  // Only recruiters log calls. Admin/viewer get read-only oversight.
+  const isRecruiter = user?.role === "recruiter";
+  const canEdit = isRecruiter;
+
+  // Recruiters see their candidates grouped BY COMPANY.
+  // Admins/viewers see everyone grouped BY RECRUITER, to watch activity.
+  const groupBy    = isRecruiter ? "clientName" : "ownerName";
+  const groupLabel = isRecruiter ? "Company"    : "Recruiter";
+  const groupIcon  = isRecruiter ? "domain"     : "person";
 
   const load = useCallback(() => {
     setLoading(true);
@@ -191,11 +200,32 @@ export default function CallLog({ user }) {
     if (FLAG_KEYS.includes(filter) && r.callFlag !== filter) return false;
     const q = search.trim().toLowerCase();
     if (!q) return true;
-    return [r.candidateName, r.clientName, r.phone, r.designation]
+    return [r.candidateName, r.clientName, r.phone, r.designation, r.ownerName]
       .some(v => (v || "").toLowerCase().includes(q));
   });
 
   const counts = data.counts || {};
+
+  // Group the filtered rows (by company for recruiters, by recruiter for admins)
+  const groups = (() => {
+    const map = {};
+    for (const r of rows) {
+      const key = (r[groupBy] || "").trim() || "— Unassigned —";
+      if (!map[key]) map[key] = { name: key, items: [], red: 0, yellow: 0, green: 0, none: 0 };
+      map[key].items.push(r);
+      if (r.callFlag === "red") map[key].red++;
+      else if (r.callFlag === "yellow") map[key].yellow++;
+      else if (r.callFlag === "green") map[key].green++;
+      else map[key].none++;
+    }
+    return Object.values(map).sort((a, b) => b.items.length - a.items.length);
+  })();
+
+  const toggle = (name) => setCollapsed(s => {
+    const n = new Set(s);
+    n.has(name) ? n.delete(name) : n.add(name);
+    return n;
+  });
   const tabs = [
     { k: "all",    l: "All",     n: counts.all    || 0, dot: "bg-primary" },
     { k: "none",   l: "Not called", n: counts.none || 0, dot: "bg-outline-variant" },
@@ -225,15 +255,33 @@ export default function CallLog({ user }) {
     <div className="font-sans">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <div>
-          <h1 className="text-4xl font-black text-primary tracking-tight">Call Log</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-4xl font-black text-primary tracking-tight">Call Log</h1>
+            {!canEdit && (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container text-text-secondary text-[10px] font-black uppercase tracking-wider">
+                <M n="visibility" className="text-sm"/> View only
+              </span>
+            )}
+          </div>
           <p className="text-text-tertiary text-lg font-medium mt-1">
-            Follow up with joined candidates and track their status.
+            {isRecruiter
+              ? "Follow up with your joined candidates, grouped by company."
+              : "Monitor recruiter follow-up activity across all joined candidates."}
           </p>
         </div>
-        <button onClick={load}
-          className="flex items-center gap-2 px-5 py-3 bg-white border border-outline-variant text-primary rounded-xl font-extrabold hover:bg-surface-container-low transition-all self-start">
-          <M n="refresh"/> Refresh
-        </button>
+        <div className="flex items-center gap-3 self-start flex-wrap">
+          {groups.length > 1 && (
+            <button onClick={() => setCollapsed(c => c.size ? new Set() : new Set(groups.map(g => g.name)))}
+              className="flex items-center gap-2 px-5 py-3 bg-white border border-outline-variant text-primary rounded-xl font-extrabold hover:bg-surface-container-low transition-all">
+              <M n={collapsed.size ? "unfold_more" : "unfold_less"}/>
+              {collapsed.size ? "Expand all" : "Collapse all"}
+            </button>
+          )}
+          <button onClick={load}
+            className="flex items-center gap-2 px-5 py-3 bg-white border border-outline-variant text-primary rounded-xl font-extrabold hover:bg-surface-container-low transition-all">
+            <M n="refresh"/> Refresh
+          </button>
+        </div>
       </header>
 
       {/* Flag legend */}
@@ -261,9 +309,16 @@ export default function CallLog({ user }) {
       {/* Search */}
       <div className="relative mb-6">
         <M n="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-text-tertiary"/>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, client or phone…"
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={isRecruiter ? "Search name, company or phone…" : "Search name, recruiter, company or phone…"}
           className="w-full pl-10 pr-3 py-3 rounded-xl border border-outline-variant bg-white text-sm font-semibold text-primary outline-none focus:border-primary transition-colors"/>
       </div>
+
+      {/* Grouping indicator */}
+      {!loading && !error && groups.length > 0 && (
+        <div className="flex items-center gap-2 mb-3 text-[10px] font-black uppercase tracking-widest text-text-tertiary">
+          <M n={groupIcon} className="text-sm"/> Grouped by {groupLabel} · {groups.length} {groups.length === 1 ? "group" : "groups"}
+        </div>
+      )}
 
       {/* List */}
       {loading ? (
@@ -281,44 +336,91 @@ export default function CallLog({ user }) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {rows.map(r => {
-            const f = FLAGS[r.callFlag];
+        <div className="space-y-4">
+          {groups.map(g => {
+            const isOpen = !collapsed.has(g.name);
             return (
-              <div key={r.id} onClick={() => setActive(r)}
-                className="bg-white p-5 rounded-3xl border border-outline-variant shadow-sm hover:-translate-y-1 hover:shadow-xl hover:border-primary transition-all cursor-pointer">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <span className={`w-3 h-3 rounded-full shrink-0 mt-1.5 ${f ? f.dot : "bg-outline-variant"}`}
-                      title={f ? f.label : "Not called yet"}/>
+              <div key={g.name} className="bg-white rounded-3xl border border-outline-variant shadow-sm overflow-hidden">
+                {/* Group header */}
+                <div onClick={() => toggle(g.name)}
+                  className="flex items-center justify-between gap-4 p-5 cursor-pointer hover:bg-surface-container-low transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-2xl bg-primary/5 flex items-center justify-center shrink-0">
+                      <M n={groupIcon} className="text-primary"/>
+                    </div>
                     <div className="min-w-0">
-                      <p className="font-black text-primary truncate">{r.candidateName}</p>
-                      <p className="text-xs font-medium text-text-tertiary truncate">
-                        {r.clientName || "—"}{r.designation ? ` · ${r.designation}` : ""}
-                      </p>
-                      <p className="text-[11px] font-medium text-text-tertiary mt-1">
-                        Joined {fmtD(r.actualDOJ)}
+                      <p className="font-black text-primary truncate">{g.name}</p>
+                      <p className="text-[11px] font-medium text-text-tertiary">
+                        {g.items.length} candidate{g.items.length > 1 ? "s" : ""}
                       </p>
                     </div>
                   </div>
-                  <span className={`text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap shrink-0 ${f ? f.chip : "bg-surface-container text-text-tertiary"}`}>
-                    {f ? f.short : "Not called"}
-                  </span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {/* per-group flag tally */}
+                    <div className="hidden sm:flex items-center gap-1.5">
+                      {[["red", g.red], ["yellow", g.yellow], ["green", g.green]].map(([k, n]) => n > 0 && (
+                        <span key={k} className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black ${FLAGS[k].chip}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${FLAGS[k].dot}`}/> {n}
+                        </span>
+                      ))}
+                      {g.none > 0 && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-surface-container text-text-tertiary">
+                          <span className="w-1.5 h-1.5 rounded-full bg-outline-variant"/> {g.none}
+                        </span>
+                      )}
+                    </div>
+                    <M n={isOpen ? "expand_less" : "expand_more"} className="text-2xl text-outline-variant"/>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-surface-container flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <ContactButtons phone={r.phone} email={r.email}
-                      waMessage={`Hi ${r.candidateName}, checking in regarding your joining at ${r.clientName || "your new company"}.`}/>
-                    <span className="text-[10px] font-bold text-text-tertiary flex items-center gap-1">
-                      <M n="history" className="text-sm"/> {fmtWhen(r.lastCalledAt)}
-                      {r.callCount > 0 && ` · ${r.callCount} call${r.callCount > 1 ? "s" : ""}`}
-                    </span>
+                {/* Group items */}
+                {isOpen && (
+                  <div className="border-t border-surface-container p-4 grid grid-cols-1 xl:grid-cols-2 gap-3 bg-surface-container-low">
+                    {g.items.map(r => {
+                      const f = FLAGS[r.callFlag];
+                      return (
+                        <div key={r.id} onClick={() => setActive(r)}
+                          className="bg-white p-4 rounded-2xl border border-outline-variant hover:border-primary hover:shadow-md transition-all cursor-pointer">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <span className={`w-3 h-3 rounded-full shrink-0 mt-1.5 ${f ? f.dot : "bg-outline-variant"}`}
+                                title={f ? f.label : "Not called yet"}/>
+                              <div className="min-w-0">
+                                <p className="font-black text-primary truncate">{r.candidateName}</p>
+                                <p className="text-xs font-medium text-text-tertiary truncate">
+                                  {/* show the *other* dimension so context isn't lost */}
+                                  {isRecruiter
+                                    ? (r.designation || "—")
+                                    : (r.clientName || "—")}
+                                </p>
+                                <p className="text-[11px] font-medium text-text-tertiary mt-1">
+                                  Joined {fmtD(r.actualDOJ)}
+                                </p>
+                              </div>
+                            </div>
+                            <span className={`text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap shrink-0 ${f ? f.chip : "bg-surface-container text-text-tertiary"}`}>
+                              {f ? f.short : "Not called"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-surface-container flex-wrap">
+                            <div className="flex items-center gap-3">
+                              <ContactButtons phone={r.phone} email={r.email}
+                                waMessage={`Hi ${r.candidateName}, checking in regarding your joining at ${r.clientName || "your new company"}.`}/>
+                              <span className="text-[10px] font-bold text-text-tertiary flex items-center gap-1">
+                                <M n="history" className="text-sm"/> {fmtWhen(r.lastCalledAt)}
+                                {r.callCount > 0 && ` · ${r.callCount}`}
+                              </span>
+                            </div>
+                            <span className="text-[11px] font-black text-primary flex items-center gap-1">
+                              {canEdit ? "Log call" : "View"} <M n="chevron_right" className="text-sm"/>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <span className="text-[11px] font-black text-primary flex items-center gap-1">
-                    {canEdit ? "Log call" : "View"} <M n="chevron_right" className="text-sm"/>
-                  </span>
-                </div>
+                )}
               </div>
             );
           })}
