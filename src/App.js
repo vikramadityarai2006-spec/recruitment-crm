@@ -10,6 +10,7 @@ import Companies from "./pages/Companies";
 import Report from "./pages/Report";
 import UserReport from "./pages/UserReport";
 import ClientDetail from "./pages/ClientDetail";
+import CallLog from "./pages/CallLog";
 
 // ─── SESSION EXPIRY MODAL ─────────────────────────────────────────────────────
 function SessionExpiredModal({ onDismiss }) {
@@ -117,6 +118,7 @@ export default function App() {
   const nav = [
     { k: "dashboard",  l: "Dashboard",       i: "dash"  },
     { k: "candidates", l: "Candidates",       i: "users" },
+    { k: "call-log",   l: "Call Log",         i: "phone" },
     // Recruiters get a personal Reports page instead of the shared Companies (client) page
     ...(user && user.role === "recruiter" ? [{ k: "reports", l: "Reports", i: "trendUp" }] : []),
     ...(user && user.role !== "recruiter" ? [{ k: "companies", l: "Companies", i: "chart" }] : []),
@@ -130,7 +132,7 @@ export default function App() {
   const PAGE_TITLES = {
     dashboard: "Dashboard", candidates: "Candidates", reports: "Reports",
     companies: "Company Contacts", masters: "Master Data", audit: "Audit Log",
-    "user-report": "User Report", "client-detail": "Client Detail"
+    "user-report": "User Report", "client-detail": "Client Detail", "call-log": "Call Log"
   };
 
   // Session time remaining display
@@ -238,6 +240,7 @@ export default function App() {
           {page === "companies"  && user.role !== "recruiter" && <Companies user={user}
               openCompanyId={openCompanyId} onOpenedCompany={() => setOpenCompanyId(null)} />}
           {page === "user-report" && user.role !== "recruiter" && <UserReport onNavigate={goTo} />}
+          {page === "call-log"   && <CallLog user={user} />}
           {page === "client-detail" && clientCtx && <ClientDetail clientName={clientCtx.clientName} from={clientCtx.from} to={clientCtx.to} onNavigate={goTo} />}
           {page === "masters"    && user.role === "admin" && <Masters masters={masters} reload={loadMasters} currentUser={user} />}
           {page === "audit"      && user.role === "admin" && <Audit />}

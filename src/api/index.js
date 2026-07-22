@@ -51,6 +51,12 @@ export const api = {
   updateUser: (id, d) => fetch(`${BASE_URL}/users?id=${id}`, { method: "PUT", headers: H(), body: JSON.stringify(d) }).then(handle),
   deleteUser: (id) => fetch(`${BASE_URL}/users?id=${id}`, { method: "DELETE", headers: H() }).then(handle),
 
+  // Call Log
+  getCallLog: (p = {}) => fetch(`${BASE_URL}/call-log?${new URLSearchParams(p)}`, { headers: H() }).then(handle),
+  getCallHistory: (candidateId) => fetch(`${BASE_URL}/call-log?candidateId=${candidateId}`, { headers: H() }).then(handle),
+  logCall: (d) => fetch(`${BASE_URL}/call-log`, { method: "POST", headers: H(), body: JSON.stringify(d) }).then(handle),
+  deleteCallLog: (id) => fetch(`${BASE_URL}/call-log?id=${id}`, { method: "DELETE", headers: H() }).then(handle),
+
   // Companies
   getCompanies: (p = {}) => fetch(`${BASE_URL}/companies?${new URLSearchParams(p)}`, { headers: H() }).then(handle),
   getCompany: (id) => fetch(`${BASE_URL}/companies?id=${id}`, { headers: H() }).then(handle),
