@@ -13,7 +13,19 @@ const handle = async (res) => {
     window.dispatchEvent(new CustomEvent("crm_logout", { detail: "session_expired" }));
     return { error: "Session expired. Please login again." };
   }
-  return res.json();
+  // The API normally returns JSON, but a crashed or timed-out serverless
+  // function returns an HTML error page. Parsing that blindly produced
+  // "Unexpected token 'A'... is not valid JSON" and hid the real problem.
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (res.status === 504 || /timed? ?out/i.test(text))
+      return { error: "The server took too long to respond. This usually means the mail server is unreachable — check your SMTP settings." };
+    if (res.status >= 500)
+      return { error: `Server error (${res.status}). Please try again, or check the API logs if it keeps happening.` };
+    return { error: `Unexpected response from server (${res.status}).` };
+  }
 };
 
 export const api = {
