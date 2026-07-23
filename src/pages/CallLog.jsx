@@ -19,7 +19,7 @@ const FLAG_KEYS = ["green", "yellow", "red"];
 // calendar is filtering on, since it differs per section.
 const SECTIONS = [
   { k: "joined",      l: "Joined",      icon: "verified",             dateLabel: "Joining date",     dateKey: "actualDOJ" },
-  { k: "resignation", l: "Resignation", icon: "person_off",           dateLabel: "Resignation date", dateKey: "resignationDate" },
+  { k: "resignation", l: "Resignation", icon: "person_off",           dateLabel: "Proposed DOJ",     dateKey: "proposedDOJ" },
   { k: "offered",     l: "Offered",     icon: "assignment_turned_in", dateLabel: "Offer month",      dateKey: "offerMonth" },
 ];
 
@@ -456,7 +456,7 @@ export default function CallLog({ user }) {
                                     : (r.clientName || "—")}
                                 </p>
                                 <p className="text-[11px] font-medium text-text-tertiary mt-1">
-                                  {activeSection.l === "Joined" ? "Joined" : activeSection.l === "Offered" ? "Offer" : "Resigned"} {fmtD(r[activeSection.dateKey])}
+                                  {activeSection.l === "Joined" ? "Joined" : activeSection.l === "Offered" ? "Offer" : "Proposed DOJ"} {fmtD(r[activeSection.dateKey])}
                                 </p>
                               </div>
                             </div>
