@@ -12,6 +12,7 @@ export default function Login({ onLogin }) {
   const [otpStage, setOtpStage] = useState(false);
   const [otp, setOtp]           = useState("");
   const [otpMins, setOtpMins]   = useState(10);
+  const [otpShared, setOtpShared] = useState(false);
 
   const startSession = (r) => {
     sessionStorage.setItem("crm_token", r.token);
@@ -28,6 +29,7 @@ export default function Login({ onLogin }) {
       if (r.otpRequired) {
         setOtpStage(true);
         setOtpMins(r.expiresInMinutes || 10);
+        setOtpShared(Boolean(r.sentToShared));
         setOtp("");
         setLoading(false);
         return;
@@ -176,11 +178,13 @@ export default function Login({ onLogin }) {
 
             <div style={{ marginBottom:48 }}>
               <h2 style={{ fontSize:32, lineHeight:"40px", letterSpacing:"-.01em", fontWeight:700, color:"#003163", marginBottom:8 }}>
-                {otpStage ? "Check your email" : "Welcome back"}
+                {otpStage ? (otpShared ? "Enter your code" : "Check your email") : "Welcome back"}
               </h2>
               <p style={{ fontSize:16, color:"#43474f" }}>
                 {otpStage
-                  ? <>We sent a 6-digit code to <strong style={{color:"#003163"}}>{email}</strong>. It expires in {otpMins} minutes.</>
+                  ? (otpShared
+                      ? <>A 6-digit code was sent to the <strong style={{color:"#003163"}}>company inbox</strong>. Ask your administrator for it. It expires in {otpMins} minutes.</>
+                      : <>We sent a 6-digit code to <strong style={{color:"#003163"}}>{email}</strong>. It expires in {otpMins} minutes.</>)
                   : "Secure CRM Login Portal"}
               </p>
             </div>
