@@ -25,13 +25,26 @@ function PrimaryButton({ onClick, disabled, children, className = "" }) {
 }
 
 // ─── USER CARD ────────────────────────────────────────────────────────────────
-function UserCard({ u, currentUserId, onRoleChange, onToggle, onDelete, onResetPassword }) {
+function UserCard({ u, currentUserId, onRoleChange, onToggle, onDelete, onResetPassword, onUpdateEmail }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editEmail, setEditEmail] = useState(false);
+  const [emailVal, setEmailVal] = useState(u.email || "");
+  const [emailErr, setEmailErr] = useState("");
   const [newPass, setNewPass] = useState("");
   const [showReset, setShowReset] = useState(false);
   const [saving, setSaving] = useState(false);
   const isSelf = u.id === currentUserId;
   const role = ROLES[u.role] || ROLES.viewer;
+
+  const saveEmail = async () => {
+    setEmailErr("");
+    const v = emailVal.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) { setEmailErr("Enter a valid email"); return; }
+    setSaving(true);
+    const r = await onUpdateEmail(u.id, v);
+    setSaving(false);
+    if (r && r.error) setEmailErr(r.error); else setEditEmail(false);
+  };
 
   const handleReset = async () => {
     if (!newPass || newPass.length < 6) return;
@@ -54,7 +67,27 @@ function UserCard({ u, currentUserId, onRoleChange, onToggle, onDelete, onResetP
             </div>
             {isSelf && <span className="text-[9px] bg-primary/5 text-primary px-1.5 py-0.5 rounded font-bold uppercase">You</span>}
           </div>
-          <div className="text-xs text-text-secondary truncate mt-0.5">{u.email}</div>
+          {editEmail ? (
+            <div className="mt-1">
+              <div className="flex items-center gap-1">
+                <input value={emailVal} onChange={e=>{setEmailVal(e.target.value);setEmailErr("");}}
+                  className="flex-1 min-w-0 px-2 py-1 text-xs border border-outline-variant rounded-md outline-none focus:border-primary"/>
+                <button onClick={saveEmail} disabled={saving}
+                  className="px-2 py-1 text-[10px] font-bold bg-primary text-white rounded-md">Save</button>
+                <button onClick={()=>{setEditEmail(false);setEmailVal(u.email||"");setEmailErr("");}}
+                  className="px-2 py-1 text-[10px] font-bold text-text-secondary">Cancel</button>
+              </div>
+              {emailErr && <p className="text-[10px] text-error font-bold mt-1">{emailErr}</p>}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="text-xs text-text-secondary truncate">{u.email || <em className="text-error">No email — cannot log in</em>}</span>
+              <button onClick={()=>setEditEmail(true)} title="Edit email"
+                className="shrink-0 text-text-tertiary hover:text-primary">
+                <span className="material-symbols-outlined text-[14px]">edit</span>
+              </button>
+            </div>
+          )}
         </div>
         <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${u.active ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-red-500"}`} title={u.active ? "Active" : "Inactive"}/>
       </div>
@@ -281,6 +314,16 @@ export default function Masters({ masters, reload, currentUser }) {
     if (r.error) showMsg(r.error, "error"); else showMsg("Password updated!");
   };
 
+  // Each recruiter signs in with their own address, so a typo has to be
+  // fixable without deleting and recreating the account.
+  const updateEmail = async (id, email) => {
+    const r = await api.updateUser(id, { email });
+    if (r.error) { showMsg(r.error, "error"); return r; }
+    setUsers(us => us.map(u => u.id === id ? { ...u, email } : u));
+    showMsg("Email updated!");
+    return r;
+  };
+
   const currentTab = tabs.find(t => t.k === tab);
   const fullItems = (masters._full?.[tab] || []).filter(item => !search || item.value.toLowerCase().includes(search.toLowerCase()));
   const activeUsers = users.filter(u => u.active).length;
@@ -422,7 +465,7 @@ export default function Masters({ masters, reload, currentUser }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {users.map(u => (
                     <UserCard key={u.id} u={u} currentUserId={currentUser?.id}
-                      onRoleChange={changeRole} onToggle={toggleUser} onDelete={deleteUser} onResetPassword={resetPassword}/>
+                      onRoleChange={changeRole} onToggle={toggleUser} onDelete={deleteUser} onResetPassword={resetPassword} onUpdateEmail={updateEmail}/>
                   ))}
                 </div>
               )}
