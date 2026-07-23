@@ -51,6 +51,10 @@ export const api = {
   updateUser: (id, d) => fetch(`${BASE_URL}/users?id=${id}`, { method: "PUT", headers: H(), body: JSON.stringify(d) }).then(handle),
   deleteUser: (id) => fetch(`${BASE_URL}/users?id=${id}`, { method: "DELETE", headers: H() }).then(handle),
 
+  // Two-factor login (recruiters): login() may return { otpRequired: true },
+  // in which case the emailed code is confirmed with verifyOtp().
+  verifyOtp: (email, otp) => fetch(`${BASE_URL}/auth`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, otp }) }).then(handle),
+
   // Bulk messaging
   bulkMessage: (d) => fetch(`${BASE_URL}/bulk-message`, { method: "POST", headers: H(), body: JSON.stringify(d) }).then(handle),
 

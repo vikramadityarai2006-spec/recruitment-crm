@@ -8,18 +8,32 @@ export default function Login({ onLogin }) {
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(false);
+  // Two-factor step: recruiters receive a code by email before a session starts.
+  const [otpStage, setOtpStage] = useState(false);
+  const [otp, setOtp]           = useState("");
+  const [otpMins, setOtpMins]   = useState(10);
+
+  const startSession = (r) => {
+    sessionStorage.setItem("crm_token", r.token);
+    const expiresAt = Date.now() + (r.expiresIn || 28800) * 1000;
+    sessionStorage.setItem("crm_session_expires", expiresAt.toString());
+    onLogin(r.user);
+  };
 
   const go = async e => {
     e.preventDefault();
     setLoading(true); setErr("");
     try {
       const r = await api.login(email.trim(), pass);
-      if (r.token) {
-        sessionStorage.setItem("crm_token", r.token);
-        const expiresAt = Date.now() + (r.expiresIn || 28800) * 1000;
-        sessionStorage.setItem("crm_session_expires", expiresAt.toString());
-        onLogin(r.user);
-      } else {
+      if (r.otpRequired) {
+        setOtpStage(true);
+        setOtpMins(r.expiresInMinutes || 10);
+        setOtp("");
+        setLoading(false);
+        return;
+      }
+      if (r.token) startSession(r);
+      else {
         setErr(r.error || "Invalid credentials. Please verify your email and password.");
         setLoading(false);
       }
@@ -28,6 +42,25 @@ export default function Login({ onLogin }) {
       setLoading(false);
     }
   };
+
+  const verify = async e => {
+    e.preventDefault();
+    if (otp.trim().length < 6) { setErr("Enter the 6-digit code from your email."); return; }
+    setLoading(true); setErr("");
+    try {
+      const r = await api.verifyOtp(email.trim(), otp.trim());
+      if (r.token) startSession(r);
+      else {
+        setErr(r.error || "That code was not accepted.");
+        setLoading(false);
+      }
+    } catch {
+      setErr("Connection failed. Check your internet and try again.");
+      setLoading(false);
+    }
+  };
+
+  const backToLogin = () => { setOtpStage(false); setOtp(""); setErr(""); setPass(""); };
 
   const fillDemo = (role) => {
     const demos = {
@@ -142,8 +175,14 @@ export default function Login({ onLogin }) {
             </div>
 
             <div style={{ marginBottom:48 }}>
-              <h2 style={{ fontSize:32, lineHeight:"40px", letterSpacing:"-.01em", fontWeight:700, color:"#003163", marginBottom:8 }}>Welcome back</h2>
-              <p style={{ fontSize:16, color:"#43474f" }}>Secure CRM Login Portal</p>
+              <h2 style={{ fontSize:32, lineHeight:"40px", letterSpacing:"-.01em", fontWeight:700, color:"#003163", marginBottom:8 }}>
+                {otpStage ? "Check your email" : "Welcome back"}
+              </h2>
+              <p style={{ fontSize:16, color:"#43474f" }}>
+                {otpStage
+                  ? <>We sent a 6-digit code to <strong style={{color:"#003163"}}>{email}</strong>. It expires in {otpMins} minutes.</>
+                  : "Secure CRM Login Portal"}
+              </p>
             </div>
 
             {/* Error */}
@@ -154,6 +193,7 @@ export default function Login({ onLogin }) {
               </div>
             )}
 
+            {!otpStage && (
             <form onSubmit={go} style={{ display:"flex", flexDirection:"column", gap:24 }}>
               {/* Email */}
               <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
@@ -211,8 +251,47 @@ export default function Login({ onLogin }) {
                 )}
               </button>
             </form>
+            )}
+
+            {/* ── Step 2: one-time code (recruiters) ── */}
+            {otpStage && (
+            <form onSubmit={verify} style={{ display:"flex", flexDirection:"column", gap:24 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                <label style={{ fontSize:14, fontWeight:600, color:"#43474f", letterSpacing:".01em" }}>Verification code</label>
+                <div style={{ position:"relative" }}>
+                  <span className="mat" style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#737780", fontSize:20, pointerEvents:"none" }}>pin</span>
+                  <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+                    value={otp} autoFocus placeholder="000000"
+                    onChange={e=>{ setOtp(e.target.value.replace(/\D/g,"")); setErr(""); }}
+                    className="field"
+                    style={{ paddingLeft:44, letterSpacing:"10px", fontSize:22, fontWeight:700, textAlign:"center" }}/>
+                </div>
+              </div>
+
+              <button type="submit" disabled={loading} className="submit-btn"
+                style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"16px 24px", background:"#E67E22", color:"white", border:"none", borderRadius:12, fontSize:14, fontWeight:600, letterSpacing:".01em", boxShadow:"0 4px 16px rgba(230,126,34,.35)", transition:"all .2s", cursor:"pointer", fontFamily:"inherit" }}>
+                {loading ? (
+                  <>
+                    <div style={{ width:18, height:18, border:"2px solid rgba(255,255,255,.3)", borderTop:"2px solid white", borderRadius:"50%" }} className="spin"/>
+                    Verifying…
+                  </>
+                ) : (
+                  <>
+                    Verify and sign in
+                    <span className="mat" style={{ fontSize:20 }}>arrow_forward</span>
+                  </>
+                )}
+              </button>
+
+              <button type="button" onClick={backToLogin}
+                style={{ background:"none", border:"none", cursor:"pointer", color:"#003163", fontSize:12, fontWeight:600, fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <span className="mat" style={{ fontSize:16 }}>arrow_back</span> Use a different account
+              </button>
+            </form>
+            )}
 
             {/* Demo accounts */}
+            {!otpStage && (
             <div style={{ marginTop:48, paddingTop:32, borderTop:"1px solid #c3c6d1" }}>
               <p style={{ fontSize:12, color:"#43474f", textTransform:"uppercase", letterSpacing:".05em", fontWeight:500, marginBottom:16 }}>Quick Access: Demo Accounts</p>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
@@ -229,6 +308,7 @@ export default function Login({ onLogin }) {
                 ))}
               </div>
             </div>
+            )}
 
             <p style={{ marginTop:48, textAlign:"center", fontSize:12, color:"#737780" }}>
               Need help? Contact{" "}
