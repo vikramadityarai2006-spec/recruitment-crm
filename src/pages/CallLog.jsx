@@ -9,18 +9,18 @@ const M = ({ n, fill = 0, className = "" }) => (
 
 // The three tracking flags. Single source of truth for label + colour.
 const FLAGS = {
-  red:    { label: "Left the company",       short: "Left",    dot: "bg-error",     chip: "bg-red-100 text-error",           icon: "logout" },
-  yellow: { label: "Payment yet to receive", short: "Pending", dot: "bg-secondary", chip: "bg-orange-100 text-secondary",    icon: "schedule" },
-  green:  { label: "Payment received",       short: "Paid",    dot: "bg-green-600", chip: "bg-green-100 text-green-700",     icon: "paid" },
+  green:  { label: "Connected with candidate", short: "Connected",   dot: "bg-green-600", chip: "bg-green-100 text-green-700",  icon: "phone_in_talk" },
+  yellow: { label: "Issue",                    short: "Issue",       dot: "bg-secondary", chip: "bg-orange-100 text-secondary", icon: "warning" },
+  red:    { label: "No response",              short: "No response", dot: "bg-error",     chip: "bg-red-100 text-error",        icon: "phone_missed" },
 };
-const FLAG_KEYS = ["red", "yellow", "green"];
+const FLAG_KEYS = ["green", "yellow", "red"];
 
 // The three candidate sections. `dateLabel` tells the user which date the
 // calendar is filtering on, since it differs per section.
 const SECTIONS = [
-  { k: "offered",     l: "Offered",     icon: "assignment_turned_in", dateLabel: "Offer month",     dateKey: "offerMonth" },
-  { k: "joined",      l: "Joined",      icon: "verified",             dateLabel: "Joining date",    dateKey: "actualDOJ" },
-  { k: "resignation", l: "Resignation", icon: "person_off",           dateLabel: "Resignation date",dateKey: "resignationDate" },
+  { k: "joined",      l: "Joined",      icon: "verified",             dateLabel: "Joining date",     dateKey: "actualDOJ" },
+  { k: "resignation", l: "Resignation", icon: "person_off",           dateLabel: "Resignation date", dateKey: "resignationDate" },
+  { k: "offered",     l: "Offered",     icon: "assignment_turned_in", dateLabel: "Offer month",      dateKey: "offerMonth" },
 ];
 
 const fmtWhen = (d) => {
@@ -252,9 +252,9 @@ export default function CallLog({ user }) {
   const tabs = [
     { k: "all",    l: "All",     n: counts.all    || 0, dot: "bg-primary" },
     { k: "none",   l: "Not called", n: counts.none || 0, dot: "bg-outline-variant" },
-    { k: "red",    l: "Left",    n: counts.red    || 0, dot: "bg-error" },
-    { k: "yellow", l: "Pending", n: counts.yellow || 0, dot: "bg-secondary" },
-    { k: "green",  l: "Paid",    n: counts.green  || 0, dot: "bg-green-600" },
+    { k: "green",  l: "Connected",   n: counts.green  || 0, dot: "bg-green-600" },
+    { k: "yellow", l: "Issue",       n: counts.yellow || 0, dot: "bg-secondary" },
+    { k: "red",    l: "No response", n: counts.red    || 0, dot: "bg-error" },
   ];
 
   // Reflect a saved flag immediately without a full refetch.
@@ -274,7 +274,7 @@ export default function CallLog({ user }) {
     });
   };
 
-  const activeSection = SECTIONS.find(x => x.k === section) || SECTIONS[1];
+  const activeSection = SECTIONS.find(x => x.k === section) || SECTIONS[0];
   const pickerCls = "px-3 py-2 rounded-lg border border-outline-variant bg-white text-primary text-xs font-semibold outline-none focus:border-primary cursor-pointer max-w-[200px]";
 
   return (
@@ -310,18 +310,24 @@ export default function CallLog({ user }) {
         </div>
       </header>
 
-      {/* Section tabs */}
-      <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-        {SECTIONS.map(sec => (
-          <button key={sec.k} onClick={() => { setSection(sec.k); setFilter("all"); }}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-black whitespace-nowrap transition-all border-2 ${section === sec.k ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-white text-text-secondary border-outline-variant hover:border-primary"}`}>
-            <M n={sec.icon} fill={section === sec.k ? 1 : 0} className="text-lg"/> {sec.l}
-          </button>
-        ))}
-      </div>
-
-      {/* Calendar + scrollable recruiter / client pickers */}
+      {/* Filters: section · client · recruiter · calendar */}
       <div className="flex flex-wrap items-center gap-3 mb-5 p-4 bg-white rounded-2xl border border-outline-variant">
+        <select value={section} onChange={e => { setSection(e.target.value); setFilter("all"); }} className={pickerCls}>
+          {SECTIONS.map(sec => <option key={sec.k} value={sec.k}>{sec.l}</option>)}
+        </select>
+
+        <select value={clientPick} onChange={e => setClientPick(e.target.value)} className={pickerCls}>
+          <option value="">All companies ({clientOptions.length})</option>
+          {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        {!isRecruiter && (
+          <select value={ownerPick} onChange={e => setOwnerPick(e.target.value)} className={pickerCls}>
+            <option value="">All recruiters ({ownerOptions.length})</option>
+            {ownerOptions.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        )}
+
         <div className="flex items-center gap-2">
           <M n="date_range" className={`text-lg ${range.from || range.to ? "text-secondary" : "text-text-tertiary"}`} fill={range.from || range.to ? 1 : 0}/>
           <span className="text-[10px] font-black uppercase tracking-wider text-text-tertiary">{activeSection.dateLabel}</span>
@@ -331,18 +337,6 @@ export default function CallLog({ user }) {
           <input type="date" value={range.to} min={range.from || undefined}
             onChange={e => setRange(r => ({ ...r, to: e.target.value }))} className={pickerCls}/>
         </div>
-
-        {!isRecruiter && (
-          <select value={ownerPick} onChange={e => setOwnerPick(e.target.value)} className={pickerCls} size={1}>
-            <option value="">All recruiters ({ownerOptions.length})</option>
-            {ownerOptions.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-        )}
-
-        <select value={clientPick} onChange={e => setClientPick(e.target.value)} className={pickerCls} size={1}>
-          <option value="">All companies ({clientOptions.length})</option>
-          {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
 
         {(range.from || range.to || ownerPick || clientPick) && (
           <button onClick={() => { setRange({ from: "", to: "" }); setOwnerPick(""); setClientPick(""); }}
