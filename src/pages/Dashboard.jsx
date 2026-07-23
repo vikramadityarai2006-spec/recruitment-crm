@@ -207,9 +207,11 @@ function KPICard({ icon, iconBg, iconColor, label, value, bar, barColor, badge, 
       </div>
       <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1">{label}</p>
       <h3 className="text-2xl font-extrabold text-primary">{(value||0).toLocaleString("en-IN")}</h3>
-      <div className="w-full h-1.5 bg-surface-container rounded-full mt-4">
-        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(bar,100)}%` }}/>
-      </div>
+      {typeof bar === "number" && (
+        <div className="w-full h-1.5 bg-surface-container rounded-full mt-4">
+          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(Math.max(bar,0),100)}%` }}/>
+        </div>
+      )}
     </div>
   );
 }
@@ -465,19 +467,20 @@ export default function Dashboard({ onNavigate, user }) {
   const nav = (page, filter) => onNavigate && onNavigate(page, filter);
 
   const isRecruiter = user?.role === "recruiter";
+  const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0;
   // Backout count: prefer the funnel figure, fall back to summing the client breakdown.
   const backout = funnel.backout ?? (clientStatusBreakdown||[]).reduce((a,r)=>a+(r.backout||0),0);
 
   const kpiCards = [
-    { icon:"assignment_turned_in", iconBg:"bg-orange-50",  iconColor:"text-secondary", label:"Offered",            value:offered,    bar:40, barColor:"bg-secondary",  badge:"+5%",       badgeBg:"bg-green-50",  badgeColor:"text-green-600", onClick:()=>nav("candidates", {statuses:["Offered"]}) },
-    { icon:"verified",             iconBg:"bg-green-50",   iconColor:"text-green-600", label:"Joined",             value:joined,     bar:65, barColor:"bg-green-600",  badge:"+8%",       badgeBg:"bg-green-50",  badgeColor:"text-green-600", onClick:()=>nav("candidates", {statuses:["Joined"]}) },
+    { icon:"assignment_turned_in", iconBg:"bg-orange-50",  iconColor:"text-secondary", label:"Offered",            value:offered,    bar:pct(offered), barColor:"bg-secondary",  badge:total?`${Math.round((offered/total)*100)}% of total`:"—", badgeBg:"bg-orange-50", badgeColor:"text-secondary", onClick:()=>nav("candidates", {statuses:["Offered"]}) },
+    { icon:"verified",             iconBg:"bg-green-50",   iconColor:"text-green-600", label:"Joined",             value:joined,     bar:pct(joined), barColor:"bg-green-600",  badge:offered?`${Math.round((joined/offered)*100)}% of offers`:"—", badgeBg:"bg-green-50", badgeColor:"text-green-600", onClick:()=>nav("candidates", {statuses:["Joined"]}) },
     // Backout — always shown in red, it is the dashboard's warning metric.
-    { icon:"person_cancel",        iconBg:"bg-red-50",     iconColor:"text-error",     label:"Backout",            value:backout,    bar:20, barColor:"bg-error",      badge:backout>0?"Risk":"Clear", badgeBg:backout>0?"bg-red-100":"bg-green-50", badgeColor:backout>0?"text-error":"text-green-600", onClick:()=>nav("candidates", {statuses:["Backout"]}) },
+    { icon:"person_cancel",        iconBg:"bg-red-50",     iconColor:"text-error",     label:"Backout",            value:backout,    bar:pct(backout), barColor:"bg-error",      badge:backout>0?"Risk":"Clear", badgeBg:backout>0?"bg-red-100":"bg-green-50", badgeColor:backout>0?"text-error":"text-green-600", onClick:()=>nav("candidates", {statuses:["Backout"]}) },
     // Agreements are a Companies-page concern. Recruiters have no Companies
     // access (the API returns them no agreements), so the card is hidden for them.
-    ...(isRecruiter ? [] : [{ icon:"gavel", iconBg:"bg-red-50", iconColor:"text-error", label:"Agreements", value:alerts?.expiringAgreements?.length||0, bar:30, barColor:"bg-error", badge:"Action", badgeBg:"bg-red-100", badgeColor:"text-error", onClick:()=>nav("companies") }]),
-    { icon:"calendar_today",       iconBg:"bg-surface-container", iconColor:"text-primary", label:"Joining This Month", value:thisMonth,  bar:55, barColor:"bg-primary",    badge:"This month", badgeBg:"bg-surface-container", badgeColor:"text-text-secondary", onClick:()=>nav("candidates", {actualFrom:monthRange(0).from, actualTo:monthRange(0).to}) },
-    { icon:"cancel_presentation",  iconBg:"bg-surface-container", iconColor:"text-text-secondary", label:"Resignations", value:resPending, bar:15, barColor:"bg-text-tertiary", badge:resPending>0?"Alert":"Clear", badgeBg:resPending>0?"bg-orange-100":"bg-green-50", badgeColor:resPending>0?"text-secondary":"text-green-600", onClick:()=>nav("candidates", {resignations:["Pending"]}) },
+    ...(isRecruiter ? [] : [{ icon:"gavel", iconBg:"bg-red-50", iconColor:"text-error", label:"Agreements", value:alerts?.expiringAgreements?.length||0, barColor:"bg-error", badge:"Action", badgeBg:"bg-red-100", badgeColor:"text-error", onClick:()=>nav("companies") }]),
+    { icon:"calendar_today",       iconBg:"bg-surface-container", iconColor:"text-primary", label:"Joining This Month", value:thisMonth,  bar:pct(thisMonth), barColor:"bg-primary",    badge:"This month", badgeBg:"bg-surface-container", badgeColor:"text-text-secondary", onClick:()=>nav("candidates", {actualFrom:monthRange(0).from, actualTo:monthRange(0).to}) },
+    { icon:"cancel_presentation",  iconBg:"bg-surface-container", iconColor:"text-text-secondary", label:"Resignations", value:resPending, bar:pct(resPending), barColor:"bg-text-tertiary", badge:resPending>0?"Alert":"Clear", badgeBg:resPending>0?"bg-orange-100":"bg-green-50", badgeColor:resPending>0?"text-secondary":"text-green-600", onClick:()=>nav("candidates", {resignations:["Pending"]}) },
   ];
 
   const statusColors = { Joined:"#16a34a", Offered:"#E67E22", Backout:"#ba1a1a", Hold:"#F97316", "In Process":"#001c3e" };
@@ -515,7 +518,8 @@ export default function Dashboard({ onNavigate, user }) {
               <span>{alertCount} Critical Action{alertCount>1?"s":""}</span>
             </button>
           )}
-          <button className="flex items-center gap-2 px-6 py-3.5 bg-white border border-outline-variant text-primary rounded-xl font-extrabold hover:bg-surface-container-low transition-all">
+          <button onClick={() => window.print()}
+            className="flex items-center gap-2 px-6 py-3.5 bg-white border border-outline-variant text-primary rounded-xl font-extrabold hover:bg-surface-container-low transition-all">
             <M n="download"/>
             <span>Export PDF</span>
           </button>

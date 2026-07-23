@@ -12,7 +12,7 @@
 
 (async () => {
   const BASE  = "https://crm-api-pied.vercel.app/api";
-  const token = localStorage.getItem("crm_token");
+  const token = sessionStorage.getItem("crm_token") || localStorage.getItem("crm_token");
 
   if (!token) {
     console.error("❌ Not logged in! Please log in as admin first.");
