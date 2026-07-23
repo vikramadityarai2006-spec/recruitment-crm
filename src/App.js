@@ -106,7 +106,7 @@ export default function App() {
 
   useEffect(() => { loadMasters(); }, [loadMasters]);
 
-  if (!user && !sessionExpired) return <Login onLogin={u => { setUser(u); setSessionExpired(false); }} />;
+  if (!user && !sessionExpired) return <Login onLogin={u => { sessionStorage.removeItem("alerts_seen"); setUser(u); setSessionExpired(false); }} />;
 
   const logout = (reason) => {
     sessionStorage.removeItem("crm_token");
@@ -151,7 +151,7 @@ export default function App() {
     return (
       <>
         {sessionExpired && <SessionExpiredModal onDismiss={() => setSessionExpired(false)} />}
-        <Login onLogin={u => { setUser(u); setSessionExpired(false); }} />
+        <Login onLogin={u => { sessionStorage.removeItem("alerts_seen"); setUser(u); setSessionExpired(false); }} />
       </>
     );
   }

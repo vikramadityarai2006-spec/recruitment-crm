@@ -15,6 +15,14 @@ const FLAGS = {
 };
 const FLAG_KEYS = ["red", "yellow", "green"];
 
+// The three candidate sections. `dateLabel` tells the user which date the
+// calendar is filtering on, since it differs per section.
+const SECTIONS = [
+  { k: "offered",     l: "Offered",     icon: "assignment_turned_in", dateLabel: "Offer month",     dateKey: "offerMonth" },
+  { k: "joined",      l: "Joined",      icon: "verified",             dateLabel: "Joining date",    dateKey: "actualDOJ" },
+  { k: "resignation", l: "Resignation", icon: "person_off",           dateLabel: "Resignation date",dateKey: "resignationDate" },
+];
+
 const fmtWhen = (d) => {
   if (!d) return "Never";
   const diff = Math.floor((Date.now() - new Date(d)) / 86400000);
@@ -74,7 +82,7 @@ function CallPanel({ candidate, canEdit, onClose, onSaved }) {
                 {candidate.clientName || "—"}{candidate.designation ? ` · ${candidate.designation}` : ""}
               </p>
               <p className="text-white/40 text-[11px] font-medium mt-1">
-                Joined {fmtD(candidate.actualDOJ)}{candidate.ownerName ? ` · Owner: ${candidate.ownerName}` : ""}
+                {candidate.actualDOJ ? `Joined ${fmtD(candidate.actualDOJ)}` : candidate.joiningStatus || "—"}{candidate.ownerName ? ` · Owner: ${candidate.ownerName}` : ""}
               </p>
             </div>
             <button onClick={close} className="w-9 h-9 shrink-0 flex items-center justify-center bg-white/10 rounded-full hover:bg-white/20 transition-all">
@@ -170,6 +178,10 @@ export default function CallLog({ user }) {
   const [search, setSearch]   = useState("");
   const [active, setActive]   = useState(null);
   const [collapsed, setCollapsed] = useState(() => new Set());
+  const [section, setSection] = useState("joined");
+  const [range, setRange]     = useState({ from: "", to: "" });
+  const [ownerPick, setOwnerPick]   = useState("");
+  const [clientPick, setClientPick] = useState("");
 
   // Only recruiters log calls. Admin/viewer get read-only oversight.
   const isRecruiter = user?.role === "recruiter";
@@ -183,21 +195,32 @@ export default function CallLog({ user }) {
 
   const load = useCallback(() => {
     setLoading(true);
-    api.getCallLog()
+    const p = { section };
+    if (range.from) p.from = range.from;
+    if (range.to)   p.to = range.to;
+    api.getCallLog(p)
       .then(d => {
         if (d && d.error) setError(d.error);
         else { setData(d); setError(""); }
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [section, range.from, range.to]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Dropdown options come from the full loaded set, so narrowing one filter
+  // never empties the other dropdown.
+  const uniq = (key) => [...new Set((data.rows || []).map(r => (r[key] || "").trim()).filter(Boolean))].sort();
+  const ownerOptions  = uniq("ownerName");
+  const clientOptions = uniq("clientName");
 
   // Filter client-side so switching tabs is instant.
   const rows = (data.rows || []).filter(r => {
     if (filter === "none" && r.callFlag) return false;
     if (FLAG_KEYS.includes(filter) && r.callFlag !== filter) return false;
+    if (ownerPick  && (r.ownerName  || "").trim() !== ownerPick)  return false;
+    if (clientPick && (r.clientName || "").trim() !== clientPick) return false;
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return [r.candidateName, r.clientName, r.phone, r.designation, r.ownerName]
@@ -251,6 +274,9 @@ export default function CallLog({ user }) {
     });
   };
 
+  const activeSection = SECTIONS.find(x => x.k === section) || SECTIONS[1];
+  const pickerCls = "px-3 py-2 rounded-lg border border-outline-variant bg-white text-primary text-xs font-semibold outline-none focus:border-primary cursor-pointer max-w-[200px]";
+
   return (
     <div className="font-sans">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
@@ -265,8 +291,8 @@ export default function CallLog({ user }) {
           </div>
           <p className="text-text-tertiary text-lg font-medium mt-1">
             {isRecruiter
-              ? "Follow up with your joined candidates, grouped by company."
-              : "Monitor recruiter follow-up activity across all joined candidates."}
+              ? `Follow up with your ${activeSection.l.toLowerCase()} candidates, grouped by company.`
+              : `Monitor recruiter follow-up activity across ${activeSection.l.toLowerCase()} candidates.`}
           </p>
         </div>
         <div className="flex items-center gap-3 self-start flex-wrap">
@@ -283,6 +309,48 @@ export default function CallLog({ user }) {
           </button>
         </div>
       </header>
+
+      {/* Section tabs */}
+      <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+        {SECTIONS.map(sec => (
+          <button key={sec.k} onClick={() => { setSection(sec.k); setFilter("all"); }}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-black whitespace-nowrap transition-all border-2 ${section === sec.k ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-white text-text-secondary border-outline-variant hover:border-primary"}`}>
+            <M n={sec.icon} fill={section === sec.k ? 1 : 0} className="text-lg"/> {sec.l}
+          </button>
+        ))}
+      </div>
+
+      {/* Calendar + scrollable recruiter / client pickers */}
+      <div className="flex flex-wrap items-center gap-3 mb-5 p-4 bg-white rounded-2xl border border-outline-variant">
+        <div className="flex items-center gap-2">
+          <M n="date_range" className={`text-lg ${range.from || range.to ? "text-secondary" : "text-text-tertiary"}`} fill={range.from || range.to ? 1 : 0}/>
+          <span className="text-[10px] font-black uppercase tracking-wider text-text-tertiary">{activeSection.dateLabel}</span>
+          <input type="date" value={range.from} max={range.to || undefined}
+            onChange={e => setRange(r => ({ ...r, from: e.target.value }))} className={pickerCls}/>
+          <span className="text-text-tertiary text-xs font-bold">to</span>
+          <input type="date" value={range.to} min={range.from || undefined}
+            onChange={e => setRange(r => ({ ...r, to: e.target.value }))} className={pickerCls}/>
+        </div>
+
+        {!isRecruiter && (
+          <select value={ownerPick} onChange={e => setOwnerPick(e.target.value)} className={pickerCls} size={1}>
+            <option value="">All recruiters ({ownerOptions.length})</option>
+            {ownerOptions.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        )}
+
+        <select value={clientPick} onChange={e => setClientPick(e.target.value)} className={pickerCls} size={1}>
+          <option value="">All companies ({clientOptions.length})</option>
+          {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        {(range.from || range.to || ownerPick || clientPick) && (
+          <button onClick={() => { setRange({ from: "", to: "" }); setOwnerPick(""); setClientPick(""); }}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg text-[10px] font-black text-text-secondary bg-surface-container hover:bg-surface-container-high transition-colors">
+            <M n="restart_alt" className="text-sm"/> Clear filters
+          </button>
+        )}
+      </div>
 
       {/* Flag legend */}
       <div className="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-2xl border border-outline-variant">
@@ -332,7 +400,7 @@ export default function CallLog({ user }) {
         <div className="text-center py-20 bg-white rounded-3xl border border-outline-variant">
           <M n="phone_missed" className="text-5xl text-outline-variant"/>
           <p className="text-text-tertiary font-medium mt-3">
-            {(data.rows || []).length === 0 ? "No joined candidates yet." : "No candidates match this filter."}
+            {(data.rows || []).length === 0 ? `No ${activeSection.l.toLowerCase()} candidates in this range.` : "No candidates match these filters."}
           </p>
         </div>
       ) : (
@@ -394,7 +462,7 @@ export default function CallLog({ user }) {
                                     : (r.clientName || "—")}
                                 </p>
                                 <p className="text-[11px] font-medium text-text-tertiary mt-1">
-                                  Joined {fmtD(r.actualDOJ)}
+                                  {activeSection.l === "Joined" ? "Joined" : activeSection.l === "Offered" ? "Offer" : "Resigned"} {fmtD(r[activeSection.dateKey])}
                                 </p>
                               </div>
                             </div>

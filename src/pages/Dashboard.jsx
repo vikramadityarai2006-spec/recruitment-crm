@@ -65,50 +65,9 @@ function DonutChart({ data = [], total }) {
 }
 
 // ─── ALERTS DRAWER ────────────────────────────────────────────────────────────
-function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate, hideAgreements = false }) {
+function AlertsDrawer({ alerts, onClose, onNavigate, hideAgreements = false }) {
   // Recruiters never see agreement alerts (no Companies access).
   const agreements = hideAgreements ? [] : (alerts?.expiringAgreements || []);
-  const [busyId, setBusyId] = useState(null);
-  const [doneIds, setDoneIds] = useState(() => new Set());
-
-  const markJoined = async (c) => {
-    setBusyId(c.id);
-    try {
-      const r = await api.updateCandidate(c.id, { actualDOJ: new Date().toISOString().slice(0,10) });
-      if (r.error) { alert(r.error); } else { setDoneIds(s=>new Set(s).add(c.id)); onUpdated && onUpdated(); }
-    } catch(e) { alert(e.message); }
-    setBusyId(null);
-  };
-  const markResignationAccepted = async (c) => {
-    setBusyId(c.id);
-    try {
-      const r = await api.updateCandidate(c.id, { resignationAcceptance: "Accepted" });
-      if (r.error) { alert(r.error); } else { setDoneIds(s=>new Set(s).add(c.id)); onUpdated && onUpdated(); }
-    } catch(e) { alert(e.message); }
-    setBusyId(null);
-  };
-  const renewAgreement = async (a) => {
-    const input = window.prompt(`New agreement end date for ${a.companyName} (YYYY-MM-DD):`, "");
-    if (!input) return;
-    setBusyId(a.id);
-    try {
-      const r = await api.updateCompany(a.id, { agreementEndDate: input });
-      if (r.error) { alert(r.error); } else { setDoneIds(s=>new Set(s).add(a.id)); onUpdated && onUpdated(); }
-    } catch(e) { alert(e.message); }
-    setBusyId(null);
-  };
-
-  const UpdateKey = ({ label, onClick, id, className = "bg-primary" }) => doneIds.has(id) ? (
-    <span className="text-[11px] font-bold text-green-600 flex items-center gap-1 whitespace-nowrap">
-      <M n="check_circle" fill={1} className="text-sm"/> Updated
-    </span>
-  ) : (
-    <button onClick={onClick} disabled={busyId===id}
-      className={`flex items-center gap-1 px-2.5 py-1.5 text-white rounded-lg text-[10px] font-black whitespace-nowrap ${className} ${busyId===id?"opacity-60 cursor-default":"cursor-pointer"}`}>
-      <M n="update" className="text-sm"/> {busyId===id?"...":label}
-    </button>
-  );
-
   const [activeTab, setActiveTab] = useState(() => {
     if (agreements.length) return "agreements";
     if (alerts?.upcomingDOJ?.length) return "doj";
@@ -166,12 +125,12 @@ function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate, hideAgreements =
                   <p className="font-black text-primary">{a.companyName}</p>
                   <p className="text-xs font-medium text-text-tertiary mt-0.5">{a.contactName||"—"} · <span className={`font-bold ${a.isExpired?"text-error":"text-secondary"}`}>{a.isExpired?`Expired ${Math.abs(a.daysLeft)}d ago`:`Expires in ${a.daysLeft}d`}</span></p>
                   <div className="flex items-center gap-2 mt-4 flex-wrap">
-                    <UpdateKey label="Renew Agreement" id={a.id} onClick={()=>renewAgreement(a)} className="bg-secondary"/>
-                    <ContactButtons phone={a.mobile} email={a.email} waMessage={`Hi ${a.contactName||""}, following up on agreement renewal for ${a.companyName}.`}/>
                     <button onClick={()=>{ onNavigate && onNavigate("companies", { openId: a.id }); close(); }}
-                      className="text-[11px] font-bold text-primary bg-transparent border-none cursor-pointer p-0">
-                      Open company record →
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-[10px] font-black whitespace-nowrap hover:-translate-y-0.5 transition-all">
+                      <span className="material-symbols-outlined text-sm">edit</span> Open form
                     </button>
+                    <ContactButtons phone={a.mobile} email={a.email} waMessage={`Hi ${a.contactName||""}, following up on agreement renewal for ${a.companyName}.`}/>
+                    
                   </div>
                 </div>
               </div>
@@ -187,12 +146,12 @@ function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate, hideAgreements =
                   <p className="font-black text-primary">{d.candidateName}</p>
                   <p className="text-xs font-medium text-text-tertiary mt-0.5">{d.clientName||"—"} · DOJ {fmtD(d.proposedDOJ)} · <span className="font-bold text-primary">{d.daysLeft===0?"Today":d.daysLeft===1?"Tomorrow":`${d.daysLeft}d away`}</span></p>
                   <div className="flex items-center gap-2 mt-4 flex-wrap">
-                    <UpdateKey label="Mark Joined" id={d.id} onClick={()=>markJoined(d)}/>
-                    <ContactButtons phone={d.phone} waMessage={`Hi ${d.candidateName}, confirming your joining on ${fmtD(d.proposedDOJ)}.`}/>
                     <button onClick={()=>{ onNavigate && onNavigate("candidates", { openId: d.id }); close(); }}
-                      className="text-[11px] font-bold text-primary bg-transparent border-none cursor-pointer p-0">
-                      Open candidate →
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-[10px] font-black whitespace-nowrap hover:-translate-y-0.5 transition-all">
+                      <span className="material-symbols-outlined text-sm">edit</span> Open form
                     </button>
+                    <ContactButtons phone={d.phone} waMessage={`Hi ${d.candidateName}, confirming your joining on ${fmtD(d.proposedDOJ)}.`}/>
+                    
                   </div>
                 </div>
               </div>
@@ -208,12 +167,12 @@ function AlertsDrawer({ alerts, onClose, onUpdated, onNavigate, hideAgreements =
                   <p className="font-black text-primary">{r.candidateName}</p>
                   <p className="text-xs font-medium text-text-tertiary mt-0.5">{r.clientName||"—"} · Owner: {r.ownerName||"—"}{r.proposedDOJ&&` · DOJ ${fmtD(r.proposedDOJ)}`}</p>
                   <div className="flex items-center gap-2 mt-4 flex-wrap">
-                    <UpdateKey label="Mark Accepted" id={r.id} onClick={()=>markResignationAccepted(r)}/>
-                    <ContactButtons phone={r.phone} waMessage={`Hi ${r.candidateName}, following up on your resignation acceptance.`}/>
                     <button onClick={()=>{ onNavigate && onNavigate("candidates", { openId: r.id }); close(); }}
-                      className="text-[11px] font-bold text-primary bg-transparent border-none cursor-pointer p-0">
-                      Open candidate →
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-[10px] font-black whitespace-nowrap hover:-translate-y-0.5 transition-all">
+                      <span className="material-symbols-outlined text-sm">edit</span> Open form
                     </button>
+                    <ContactButtons phone={r.phone} waMessage={`Hi ${r.candidateName}, following up on your resignation acceptance.`}/>
+                    
                   </div>
                 </div>
               </div>
@@ -460,14 +419,6 @@ export default function Dashboard({ onNavigate, user }) {
     });
   }, []);
 
-  const refresh = () => {
-    setRefreshing(true);
-    Promise.all([
-      loadDashboard(range),
-      api.getAlerts().then(al => { if (al && !al.error) setAlerts(al); }),
-    ]).catch(e => setError(e.message)).finally(() => setRefreshing(false));
-  };
-
   // Refetch the whole dashboard whenever the date range changes.
   useEffect(() => {
     const initial = data === null;
@@ -499,7 +450,7 @@ export default function Dashboard({ onNavigate, user }) {
   if (!data) return null;
 
   const { total=0, offered=0, joined=0, resPending=0, thisMonth=0, statusGroups=[], months=[],
-          clientStatusBreakdown=[] } = data;
+          funnel={}, clientStatusBreakdown=[] } = data;
 
   const fmtRange = (d) => { try { return new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }); } catch { return d; } };
   const rangeLabel = (!range.from && !range.to) ? "All time"
@@ -514,10 +465,14 @@ export default function Dashboard({ onNavigate, user }) {
   const nav = (page, filter) => onNavigate && onNavigate(page, filter);
 
   const isRecruiter = user?.role === "recruiter";
+  // Backout count: prefer the funnel figure, fall back to summing the client breakdown.
+  const backout = funnel.backout ?? (clientStatusBreakdown||[]).reduce((a,r)=>a+(r.backout||0),0);
 
   const kpiCards = [
     { icon:"assignment_turned_in", iconBg:"bg-orange-50",  iconColor:"text-secondary", label:"Offered",            value:offered,    bar:40, barColor:"bg-secondary",  badge:"+5%",       badgeBg:"bg-green-50",  badgeColor:"text-green-600", onClick:()=>nav("candidates", {statuses:["Offered"]}) },
     { icon:"verified",             iconBg:"bg-green-50",   iconColor:"text-green-600", label:"Joined",             value:joined,     bar:65, barColor:"bg-green-600",  badge:"+8%",       badgeBg:"bg-green-50",  badgeColor:"text-green-600", onClick:()=>nav("candidates", {statuses:["Joined"]}) },
+    // Backout — always shown in red, it is the dashboard's warning metric.
+    { icon:"person_cancel",        iconBg:"bg-red-50",     iconColor:"text-error",     label:"Backout",            value:backout,    bar:20, barColor:"bg-error",      badge:backout>0?"Risk":"Clear", badgeBg:backout>0?"bg-red-100":"bg-green-50", badgeColor:backout>0?"text-error":"text-green-600", onClick:()=>nav("candidates", {statuses:["Backout"]}) },
     // Agreements are a Companies-page concern. Recruiters have no Companies
     // access (the API returns them no agreements), so the card is hidden for them.
     ...(isRecruiter ? [] : [{ icon:"gavel", iconBg:"bg-red-50", iconColor:"text-error", label:"Agreements", value:alerts?.expiringAgreements?.length||0, bar:30, barColor:"bg-error", badge:"Action", badgeBg:"bg-red-100", badgeColor:"text-error", onClick:()=>nav("companies") }]),
@@ -541,8 +496,7 @@ export default function Dashboard({ onNavigate, user }) {
   ];
   const convRate = offered > 0 ? Math.round((joined/offered)*100) : 0;
   const offerRate = total > 0 ? Math.round((offered/total)*100) : 0;
-  const totalBackout = (clientStatusBreakdown||[]).reduce((a,r)=>a+(r.backout||0),0);
-  const retention = (joined+totalBackout) > 0 ? Math.round((joined/(joined+totalBackout))*100) : 100;
+  const retention = (joined+backout) > 0 ? Math.round((joined/(joined+backout))*100) : 100;
 
   return (
     <div className="font-sans">
@@ -688,7 +642,7 @@ export default function Dashboard({ onNavigate, user }) {
         </div>
       </div>
 
-      {showDrawer && alerts && <AlertsDrawer alerts={alerts} hideAgreements={isRecruiter} onClose={()=>setShowDrawer(false)} onUpdated={refresh} onNavigate={onNavigate}/>}
+      {showDrawer && alerts && <AlertsDrawer alerts={alerts} hideAgreements={isRecruiter} onClose={()=>setShowDrawer(false)} onNavigate={onNavigate}/>}
     </div>
   );
 }
