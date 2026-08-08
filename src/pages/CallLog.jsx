@@ -8,10 +8,15 @@ const M = ({ n, fill = 0, className = "" }) => (
 );
 
 // The three tracking flags. Single source of truth for label + colour.
+// Medal tiers. The stored value keys stay green/yellow/red so no data has to
+// change; only the label, colour and icon shown to the user are medal-themed.
+//   gold   (green)  = connected with client
+//   silver (yellow) = issue
+//   bronze (red)    = not connected
 const FLAGS = {
-  green:  { label: "Connected with candidate", short: "Connected",   dot: "bg-green-600", chip: "bg-green-100 text-green-700",  icon: "phone_in_talk" },
-  yellow: { label: "Issue",                    short: "Issue",       dot: "bg-secondary", chip: "bg-orange-100 text-secondary", icon: "warning" },
-  red:    { label: "No response",              short: "No response", dot: "bg-error",     chip: "bg-red-100 text-error",        icon: "phone_missed" },
+  green:  { label: "Gold — Connected with client", short: "Gold",   tier: "Gold",   dot: "bg-[#D4AF37]", chip: "bg-[#F7ECC8] text-[#8A6D1B]", icon: "workspace_premium" },
+  yellow: { label: "Silver — Issue",               short: "Silver", tier: "Silver", dot: "bg-[#9CA3AF]", chip: "bg-[#ECEEF1] text-[#586070]", icon: "workspace_premium" },
+  red:    { label: "Bronze — Not connected",       short: "Bronze", tier: "Bronze", dot: "bg-[#B87333]", chip: "bg-[#F1E0D2] text-[#7A4A22]", icon: "workspace_premium" },
 };
 const FLAG_KEYS = ["green", "yellow", "red"];
 
@@ -148,7 +153,7 @@ function CallPanel({ candidate, canEdit, onClose, onSaved }) {
                 {history.map(h => {
                   const f = FLAGS[h.flag];
                   return (
-                    <div key={h.id} className="bg-white p-4 rounded-2xl border-l-4 shadow-sm" style={{ borderLeftColor: h.flag === "red" ? "#ba1a1a" : h.flag === "yellow" ? "#E67E22" : h.flag === "green" ? "#16a34a" : "#e0e0e0" }}>
+                    <div key={h.id} className="bg-white p-4 rounded-2xl border-l-4 shadow-sm" style={{ borderLeftColor: h.flag === "green" ? "#D4AF37" : h.flag === "yellow" ? "#9CA3AF" : h.flag === "red" ? "#B87333" : "#e0e0e0" }}>
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${f ? f.chip : "bg-surface-container text-text-tertiary"}`}>
                           {f ? f.short : "Note"}
@@ -252,9 +257,9 @@ export default function CallLog({ user }) {
   const tabs = [
     { k: "all",    l: "All",     n: counts.all    || 0, dot: "bg-primary" },
     { k: "none",   l: "Not called", n: counts.none || 0, dot: "bg-outline-variant" },
-    { k: "green",  l: "Connected",   n: counts.green  || 0, dot: "bg-green-600" },
-    { k: "yellow", l: "Issue",       n: counts.yellow || 0, dot: "bg-secondary" },
-    { k: "red",    l: "No response", n: counts.red    || 0, dot: "bg-error" },
+    { k: "green",  l: "Gold",   n: counts.green  || 0, dot: "bg-[#D4AF37]" },
+    { k: "yellow", l: "Silver", n: counts.yellow || 0, dot: "bg-[#9CA3AF]" },
+    { k: "red",    l: "Bronze", n: counts.red    || 0, dot: "bg-[#B87333]" },
   ];
 
   // Reflect a saved flag immediately without a full refetch.
