@@ -219,7 +219,7 @@ export default function Candidates({ masters, user, initialFilter, onConsumeInit
   const [filters, setFilters] = useState(EMPTY);
   const [page, setPage] = useState(1);
   const [PER, setPER] = useState(25);
-  const [sortDir, setSortDir] = useState("desc");
+  const [sortDir, setSortDir] = useState("asc");
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [modal, setModal] = useState(null);
@@ -253,7 +253,7 @@ export default function Candidates({ masters, user, initialFilter, onConsumeInit
 
   const load = useCallback(async (p = 1, s = "", f = {}, per = 25, dir = "desc") => {
     setLoading(true);
-    const params = { page: p, limit: per, sortDir: dir };
+    const params = { page: p, limit: per, sortDir: dir, sortBy: "offerMonth" };
     if (s) params.search = s;
     if (f.clients?.length) params.client = f.clients.join(",");
     if (f.owners?.length) params.owner = f.owners.join(",");
@@ -414,7 +414,7 @@ export default function Candidates({ masters, user, initialFilter, onConsumeInit
               </button>
             )}
             <button onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")} title="Sort Order" className="flex items-center gap-1.5 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white text-sm font-semibold transition-all">
-              <M n={sortDir === "desc" ? "arrow_downward" : "arrow_upward"} size={18}/> {sortDir === "desc" ? "Newest" : "Oldest"}
+              <M n={sortDir === "desc" ? "arrow_downward" : "arrow_upward"} size={18}/> Offer month: {sortDir === "desc" ? "Newest" : "Oldest"}
             </button>
             <select value={PER} onChange={e => { setPER(parseInt(e.target.value)); setPage(1); }}
               className="bg-white/10 border border-white/20 text-white text-sm font-semibold rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-white/20 transition-all">
