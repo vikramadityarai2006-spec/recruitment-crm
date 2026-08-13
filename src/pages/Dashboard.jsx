@@ -465,6 +465,14 @@ export default function Dashboard({ onNavigate, user }) {
     return { from:s.toISOString().slice(0,10), to:e.toISOString().slice(0,10) };
   };
   const nav = (page, filter) => onNavigate && onNavigate(page, filter);
+  // Carry the dashboard's active date range onto the Candidates page, mapped to
+  // whichever date field the clicked card represents.
+  const withRange = (extra, fromKey, toKey) => {
+    const f = { ...extra };
+    if (range.from) f[fromKey] = range.from;
+    if (range.to)   f[toKey]   = range.to;
+    return f;
+  };
 
   const isRecruiter = user?.role === "recruiter";
   const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0;
@@ -472,15 +480,15 @@ export default function Dashboard({ onNavigate, user }) {
   const backout = funnel.backout ?? (clientStatusBreakdown||[]).reduce((a,r)=>a+(r.backout||0),0);
 
   const kpiCards = [
-    { icon:"assignment_turned_in", iconBg:"bg-orange-50",  iconColor:"text-secondary", label:"Offered",            value:offered,    bar:pct(offered), barColor:"bg-secondary",  badge:total?`${Math.round((offered/total)*100)}% of total`:"—", badgeBg:"bg-orange-50", badgeColor:"text-secondary", onClick:()=>nav("candidates", {statuses:["Offered"]}) },
-    { icon:"verified",             iconBg:"bg-green-50",   iconColor:"text-green-600", label:"Joined",             value:joined,     bar:pct(joined), barColor:"bg-green-600",  badge:offered?`${Math.round((joined/offered)*100)}% of offers`:"—", badgeBg:"bg-green-50", badgeColor:"text-green-600", onClick:()=>nav("candidates", {statuses:["Joined"]}) },
+    { icon:"assignment_turned_in", iconBg:"bg-orange-50",  iconColor:"text-secondary", label:"Offered",            value:offered,    bar:pct(offered), barColor:"bg-secondary",  badge:total?`${Math.round((offered/total)*100)}% of total`:"—", badgeBg:"bg-orange-50", badgeColor:"text-secondary", onClick:()=>nav("candidates", withRange({statuses:["Offered"]}, "offerFrom", "offerTo")) },
+    { icon:"verified",             iconBg:"bg-green-50",   iconColor:"text-green-600", label:"Joined",             value:joined,     bar:pct(joined), barColor:"bg-green-600",  badge:offered?`${Math.round((joined/offered)*100)}% of offers`:"—", badgeBg:"bg-green-50", badgeColor:"text-green-600", onClick:()=>nav("candidates", withRange({statuses:["Joined"]}, "actualFrom", "actualTo")) },
     // Backout — always shown in red, it is the dashboard's warning metric.
-    { icon:"person_cancel",        iconBg:"bg-red-50",     iconColor:"text-error",     label:"Backout",            value:backout,    bar:pct(backout), barColor:"bg-error",      badge:backout>0?"Risk":"Clear", badgeBg:backout>0?"bg-red-100":"bg-green-50", badgeColor:backout>0?"text-error":"text-green-600", onClick:()=>nav("candidates", {statuses:["Backout"]}) },
+    { icon:"person_cancel",        iconBg:"bg-red-50",     iconColor:"text-error",     label:"Backout",            value:backout,    bar:pct(backout), barColor:"bg-error",      badge:backout>0?"Risk":"Clear", badgeBg:backout>0?"bg-red-100":"bg-green-50", badgeColor:backout>0?"text-error":"text-green-600", onClick:()=>nav("candidates", withRange({statuses:["Backout"]}, "offerFrom", "offerTo")) },
     // Agreements are a Companies-page concern. Recruiters have no Companies
     // access (the API returns them no agreements), so the card is hidden for them.
     ...(isRecruiter ? [] : [{ icon:"gavel", iconBg:"bg-red-50", iconColor:"text-error", label:"Agreements", value:alerts?.expiringAgreements?.length||0, barColor:"bg-error", badge:"Action", badgeBg:"bg-red-100", badgeColor:"text-error", onClick:()=>nav("companies") }]),
-    { icon:"calendar_today",       iconBg:"bg-surface-container", iconColor:"text-primary", label:"Joining This Month", value:thisMonth,  bar:pct(thisMonth), barColor:"bg-primary",    badge:"This month", badgeBg:"bg-surface-container", badgeColor:"text-text-secondary", onClick:()=>nav("candidates", {actualFrom:monthRange(0).from, actualTo:monthRange(0).to}) },
-    { icon:"cancel_presentation",  iconBg:"bg-surface-container", iconColor:"text-text-secondary", label:"Resignations", value:resPending, bar:pct(resPending), barColor:"bg-text-tertiary", badge:resPending>0?"Alert":"Clear", badgeBg:resPending>0?"bg-orange-100":"bg-green-50", badgeColor:resPending>0?"text-secondary":"text-green-600", onClick:()=>nav("candidates", {resignations:["Pending"]}) },
+    { icon:"calendar_today",       iconBg:"bg-surface-container", iconColor:"text-primary", label:(range.from||range.to)?"Joining In Range":"Joining This Month", value:thisMonth,  bar:pct(thisMonth), barColor:"bg-primary",    badge:(range.from||range.to)?"In range":"This month", badgeBg:"bg-surface-container", badgeColor:"text-text-secondary", onClick:()=>nav("candidates", (range.from||range.to) ? withRange({statuses:["Joined"]}, "actualFrom", "actualTo") : {actualFrom:monthRange(0).from, actualTo:monthRange(0).to}) },
+    { icon:"cancel_presentation",  iconBg:"bg-surface-container", iconColor:"text-text-secondary", label:"Resignations", value:resPending, bar:pct(resPending), barColor:"bg-text-tertiary", badge:resPending>0?"Alert":"Clear", badgeBg:resPending>0?"bg-orange-100":"bg-green-50", badgeColor:resPending>0?"text-secondary":"text-green-600", onClick:()=>nav("candidates", withRange({resignations:["Pending"]}, "proposedFrom", "proposedTo")) },
   ];
 
   const statusColors = { Joined:"#16a34a", Offered:"#E67E22", Backout:"#ba1a1a", Hold:"#F97316", "In Process":"#001c3e" };
@@ -493,9 +501,9 @@ export default function Dashboard({ onNavigate, user }) {
   const alertCount = (isRecruiter ? 0 : (alerts?.expiringAgreements?.length||0))+(alerts?.upcomingDOJ?.length||0)+(alerts?.pendingResignations?.length||0);
 
   const funnelStages = [
-    { label:"Active Pipeline Pool", value:total,  className:"bg-primary",   onClick:()=>nav("candidates",{}) },
-    { label:"Offers Extended",      value:offered, className:"bg-secondary", onClick:()=>nav("candidates",{statuses:["Offered"]}) },
-    { label:"Successful Hires",     value:joined,  className:"bg-green-600", onClick:()=>nav("candidates",{statuses:["Joined"]}) },
+    { label:"Active Pipeline Pool", value:total,  className:"bg-primary",   onClick:()=>nav("candidates", withRange({}, "offerFrom", "offerTo")) },
+    { label:"Offers Extended",      value:offered, className:"bg-secondary", onClick:()=>nav("candidates", withRange({statuses:["Offered"]}, "offerFrom", "offerTo")) },
+    { label:"Successful Hires",     value:joined,  className:"bg-green-600", onClick:()=>nav("candidates", withRange({statuses:["Joined"]}, "actualFrom", "actualTo")) },
   ];
   const convRate = offered > 0 ? Math.round((joined/offered)*100) : 0;
   const offerRate = total > 0 ? Math.round((offered/total)*100) : 0;
