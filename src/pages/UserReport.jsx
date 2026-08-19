@@ -21,15 +21,16 @@ export default function UserReport({ onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sort, setSort] = useState({ key: "total", dir: "desc" });
+  const [showAll, setShowAll] = useState(false); // false = last 7 months
 
   useEffect(() => {
     setLoading(true);
     setError("");
-    api.getUserReport()
+    api.getUserReport(showAll)
       .then(r => { if (r.error) setError(r.error); else setData(r); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [showAll]);
 
   const nav = (page, filter) => onNavigate && onNavigate(page, filter);
 
@@ -62,6 +63,12 @@ export default function UserReport({ onNavigate }) {
           <h1 className="text-4xl font-black text-primary tracking-tight">User Report</h1>
           <p className="text-text-tertiary text-lg font-medium mt-1">Per-recruiter performance, synced live with candidate data.</p>
         </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowAll(v => !v)}
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-black transition-colors ${showAll ? "bg-primary text-white" : "bg-white border border-outline-variant text-text-secondary hover:bg-surface-container-low"}`}>
+            <span className="material-symbols-outlined text-base">history</span>
+            {showAll ? "All time" : "Last 7 months"}
+          </button>
         {topPerformer && (
           <div className="flex items-center gap-3 px-6 py-3.5 bg-white border-2 border-secondary rounded-xl">
             <span className="material-symbols-outlined text-secondary fill-1">emoji_events</span>
@@ -71,6 +78,7 @@ export default function UserReport({ onNavigate }) {
             </div>
           </div>
         )}
+        </div>
       </header>
 
       {/* Org-wide summary cards */}

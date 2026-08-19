@@ -65,7 +65,7 @@ function DonutChart({ data = [], total }) {
 }
 
 // ─── ALERTS DRAWER ────────────────────────────────────────────────────────────
-function AlertsDrawer({ alerts, onClose, onNavigate, hideAgreements = false }) {
+function AlertsDrawer({ alerts, onClose, onNavigate, hideAgreements = false, showAll = false, onToggleAll }) {
   // Recruiters never see agreement alerts (no Companies access).
   const agreements = hideAgreements ? [] : (alerts?.expiringAgreements || []);
   const [activeTab, setActiveTab] = useState(() => {
@@ -96,9 +96,18 @@ function AlertsDrawer({ alerts, onClose, onNavigate, hideAgreements = false }) {
               {agreements.length+(alerts?.upcomingDOJ?.length||0)+(alerts?.pendingResignations?.length||0)} critical actions pending your review
             </p>
           </div>
-          <button onClick={close} className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full hover:bg-white/20 transition-all">
-            <M n="close"/>
-          </button>
+          <div className="flex items-center gap-2">
+            {onToggleAll && (
+              <button onClick={onToggleAll}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-black transition-all ${showAll ? "bg-white text-primary" : "bg-white/10 text-white hover:bg-white/20"}`}
+                title={showAll ? "Showing all history" : "Showing last 7 months"}>
+                <M n="history" className="text-sm"/> {showAll ? "All" : "7 mo"}
+              </button>
+            )}
+            <button onClick={close} className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full hover:bg-white/20 transition-all">
+              <M n="close"/>
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -405,6 +414,7 @@ function ClientEngagement({ rows, onPick, onOpenClient }) {
 export default function Dashboard({ onNavigate, user }) {
   const [data, setData]       = useState(null);
   const [alerts, setAlerts]   = useState(null);
+  const [alertsAll, setAlertsAll] = useState(false); // false = last 7 months
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError]     = useState("");
@@ -431,16 +441,16 @@ export default function Dashboard({ onNavigate, user }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, loadDashboard]);
 
-  // Alerts load once on mount (not affected by the date range).
+  // Alerts load on mount and whenever the 7-month/all toggle changes.
   useEffect(() => {
-    api.getAlerts().then(al => {
+    api.getAlerts(alertsAll).then(al => {
       if (al && !al.error) {
         setAlerts(al);
         const seen = sessionStorage.getItem("alerts_seen");
         if (al.totalAlerts > 0 && !seen) { setShowDrawer(true); sessionStorage.setItem("alerts_seen","1"); }
       }
     });
-  }, []);
+  }, [alertsAll]);
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center gap-3.5" style={{ height: 280 }}>
@@ -654,7 +664,7 @@ export default function Dashboard({ onNavigate, user }) {
         </div>
       </div>
 
-      {showDrawer && alerts && <AlertsDrawer alerts={alerts} hideAgreements={isRecruiter} onClose={()=>setShowDrawer(false)} onNavigate={onNavigate}/>}
+      {showDrawer && alerts && <AlertsDrawer alerts={alerts} hideAgreements={isRecruiter} onClose={()=>setShowDrawer(false)} onNavigate={onNavigate} showAll={alertsAll} onToggleAll={()=>setAlertsAll(v=>!v)}/>}
     </div>
   );
 }

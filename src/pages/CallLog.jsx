@@ -184,6 +184,7 @@ export default function CallLog({ user }) {
   const [active, setActive]   = useState(null);
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [section, setSection] = useState("joined");
+  const [showAll, setShowAll] = useState(false); // false = last 7 months only
   const [range, setRange]     = useState({ from: "", to: "" });
   const [ownerPick, setOwnerPick]   = useState("");
   const [clientPick, setClientPick] = useState("");
@@ -203,6 +204,7 @@ export default function CallLog({ user }) {
     const p = { section };
     if (range.from) p.from = range.from;
     if (range.to)   p.to = range.to;
+    if (showAll) p.all = "1";
     api.getCallLog(p)
       .then(d => {
         if (d && d.error) setError(d.error);
@@ -210,7 +212,7 @@ export default function CallLog({ user }) {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [section, range.from, range.to]);
+  }, [section, range.from, range.to, showAll]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -343,7 +345,13 @@ export default function CallLog({ user }) {
             onChange={e => setRange(r => ({ ...r, to: e.target.value }))} className={pickerCls}/>
         </div>
 
-        {(range.from || range.to || ownerPick || clientPick) && (
+        <button onClick={() => setShowAll(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-black transition-colors ${showAll ? "bg-primary text-white" : "bg-surface-container text-text-secondary hover:bg-surface-container-high"}`}
+          title={showAll ? "Showing all history" : "Showing last 7 months only"}>
+          <M n="history" className="text-sm"/> {showAll ? "All time" : "Last 7 months"}
+        </button>
+
+                {(range.from || range.to || ownerPick || clientPick) && (
           <button onClick={() => { setRange({ from: "", to: "" }); setOwnerPick(""); setClientPick(""); }}
             className="flex items-center gap-1 px-3 py-2 rounded-lg text-[10px] font-black text-text-secondary bg-surface-container hover:bg-surface-container-high transition-colors">
             <M n="restart_alt" className="text-sm"/> Clear filters
